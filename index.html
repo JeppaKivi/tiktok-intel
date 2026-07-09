@@ -492,6 +492,16 @@ window.refreshData = (btn) => {
   ]).then(()=>render());
 };
 function reloadFavs(){ return api("listFavorites").then(d => { favorites=d.favorites||[]; }).catch(()=>{}); }
+// live updates: while something is generating, poll until it's done and rerender
+setInterval(() => {
+  if (document.hidden) return;
+  const busy = scripts.filter(s=>s.status==="pending").length + research.filter(r=>r.status!=="done").length;
+  if (!busy) return;
+  Promise.all([reloadScripts(), reloadResearch()]).then(() => {
+    const now = scripts.filter(s=>s.status==="pending").length + research.filter(r=>r.status!=="done").length;
+    if (now !== busy && tab==="prod") render();
+  });
+}, 8000);
 
 /* ---------- favorites helpers ---------- */
 function favMatch(kind, key){ return favorites.find(f => f.kind===kind && ((f.ref_id&&f.ref_id===key) || (f.content&&f.content===key))); }
@@ -1017,7 +1027,7 @@ function renderScriptCard(s, productName){
     ${s.refine_note?`<div class="sbrief">Refine: ${esc(s.refine_note)}</div>`:""}
     ${(Array.isArray(s.pain_points)&&s.pain_points.length)?`<div class="sbrief">🎯 Reframes: ${s.pain_points.map(esc).join(" · ")}</div>`:""}`;
   if (pend){
-    return `<div class="scriptcard">${inner}<div class="note">In the queue. It'll be written from the reference videos on the next run — or say "generate the pending scripts" in Cowork for an instant result.</div></div>`;
+    return `<div class="scriptcard">${inner}<div class="note">Generating… usually under a minute. It appears here automatically (hourly cycle as backup).</div></div>`;
   }
   const variants = Array.isArray(s.variants) ? s.variants : null;
   if (variants && variants.length){
@@ -1121,7 +1131,7 @@ window.genScript = (name, cat) => {
   const msg = document.getElementById("scMsg");
   api("requestScript", { product_name:name, product_category:cat, brief, language:lang, pain_points:chosen }).then(() => {
     selPains = {};
-    msg.className="msg ok"; msg.textContent="Requested ✓ — it'll be written from your reference videos on the next run (within the hour), or ask in Cowork to generate now.";
+    msg.className="msg ok"; msg.textContent="Requested ✓ — generating now, usually ready within a minute. It appears below automatically.";
     return reloadScripts();
   }).then(()=>{ btn.disabled=false; render(); window.scrollTo(0,0); })
     .catch(()=>{ msg.className="msg err"; msg.textContent="Request failed — try again."; btn.disabled=false; });
@@ -1141,7 +1151,7 @@ window.reqResearch = (name) => {
   if (!tk && !amz && !notes){ msg.className="msg err"; msg.textContent="Add a link or some notes first — the reference videos alone are used too, but give it at least one extra source."; return; }
   const btn = document.getElementById("rsBtn"); btn.disabled = true;
   api("requestResearch", { product_name:name, product_url:tk||null, amazon_url:amz||null, notes:notes||null, language:"en" }).then(() => {
-    msg.className="msg ok"; msg.textContent="Requested ✓ — the analysis runs on the next cycle (within the hour), or ask in Cowork to run it now.";
+    msg.className="msg ok"; msg.textContent="Requested ✓ — analyzing now, usually ready within a minute. The report appears below automatically.";
     return reloadResearch();
   }).then(()=>{ btn.disabled=false; render(); window.scrollTo(0,0); })
     .catch(()=>{ msg.className="msg err"; msg.textContent="Request failed — add at least a link or notes."; btn.disabled=false; });
@@ -1177,7 +1187,7 @@ function renderResearchCard(r, fallbackTitle){
     ${r.amazon_url?`<div class="sbrief">🔗 Amazon: ${esc(r.amazon_url)}</div>`:""}
     ${r.notes?`<div class="sbrief">📝 Notes: ${esc(r.notes.length>140?r.notes.slice(0,140)+"…":r.notes)}</div>`:""}`;
   if (pend){
-    return `<div class="scriptcard">${inner}<div class="note">Queued. The research runs automatically on the next cycle — or say "run the pending product research" in Cowork for an instant result.</div></div>`;
+    return `<div class="scriptcard">${inner}<div class="note">Analyzing… usually under a minute. The report appears here automatically (hourly cycle as backup).</div></div>`;
   }
   inner += `<button class="btn sm" style="background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3);margin-top:8px" onclick="toggleReport('${r.id}')">Show / hide report</button>
     <div class="reportbody" data-r="${r.id}" style="display:none;margin-top:10px">${fmtReport(r.report_md)}</div>`;
