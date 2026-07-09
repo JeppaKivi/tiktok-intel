@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>TikTok Intel</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TikTok Intel">
+<meta name="theme-color" content="#07070e">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg:#07070e; --card:rgba(255,255,255,.035); --card-solid:#0e0e1a;
+    --border:rgba(255,255,255,.08); --border-hi:rgba(255,255,255,.16);
+    --text:#f2f3f8; --muted:#878ca3; --dim:#5a5f78;
+    --pink:#fe2c55; --cyan:#25f4ee; --violet:#8b5cf6; --amber:#ffb02e; --green:#2ee6a8;
+    --r:20px;
+  }
+  * { box-sizing:border-box; margin:0; -webkit-tap-highlight-color:transparent; }
+  html { scroll-behavior:smooth; }
+  body {
+    background:var(--bg); color:var(--text);
+    font:15px/1.55 "Inter",-apple-system,BlinkMacSystemFont,sans-serif;
+    padding-bottom:calc(96px + env(safe-area-inset-bottom));
+    min-height:100vh; overflow-x:hidden;
+    touch-action:pan-y; -webkit-text-size-adjust:100%;
+  }
+  /* ambient mesh glow */
+  body::before, body::after {
+    content:""; position:fixed; border-radius:50%; filter:blur(120px); pointer-events:none; z-index:0;
+  }
+  body::before { width:520px; height:520px; top:-220px; left:-160px; background:rgba(254,44,85,.13); }
+  body::after  { width:560px; height:560px; bottom:-240px; right:-180px; background:rgba(37,244,238,.09); }
+
+  header {
+    position:sticky; top:0; z-index:20;
+    background:rgba(7,7,14,.65); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+    border-bottom:1px solid var(--border);
+    padding:calc(14px + env(safe-area-inset-top)) 20px 14px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .logo { display:flex; align-items:center; gap:10px; font-family:"Space Grotesk"; font-weight:700; font-size:17px; letter-spacing:.3px; }
+  .logo .mark {
+    width:30px; height:30px; border-radius:9px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--pink),var(--violet)); font-size:14px; color:#fff;
+    box-shadow:0 0 18px rgba(254,44,85,.45);
+  }
+  .logo em { font-style:normal; background:linear-gradient(90deg,var(--pink),var(--cyan)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  #themeBtn, #favBtn, #reloadBtn { width:38px; height:38px; display:grid; place-items:center; cursor:pointer;
+    background:var(--card); border:1px solid var(--border); border-radius:99px; color:var(--muted);
+    font-size:17px; transition:all .25s; }
+  #reloadBtn { margin-left:auto; }
+  #favBtn, #themeBtn { margin-left:8px; }
+  #reloadBtn:hover { border-color:var(--border-hi); }
+  #reloadBtn.spin { animation:spin .7s linear; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #themeBtn:hover { border-color:var(--border-hi); transform:rotate(15deg); }
+  #favBtn { color:var(--amber); }
+  #favBtn:hover { border-color:var(--border-hi); transform:scale(1.1); }
+  .starbtn { cursor:pointer; color:var(--dim); font-size:16px; padding:2px 5px; transition:all .15s; user-select:none; flex-shrink:0; }
+  .starbtn.on { color:var(--amber); text-shadow:0 0 8px rgba(255,176,46,.5); }
+  .starbtn:hover { transform:scale(1.2); }
+  .seg { display:inline-flex; gap:3px; background:var(--card); border:1px solid var(--border); border-radius:99px; padding:3px; margin-bottom:14px; }
+  .seg button { background:none; border:none; color:var(--muted); font:600 12.5px "Inter"; padding:7px 15px; border-radius:99px; cursor:pointer; transition:all .2s; }
+  .seg button.on { background:linear-gradient(135deg,rgba(254,44,85,.85),rgba(139,92,246,.85)); color:#fff; }
+
+  /* ---- light theme ---- */
+  html[data-theme="light"] {
+    --bg:#f4f5fa; --card:#ffffff; --card-solid:#ffffff;
+    --border:rgba(15,15,40,.1); --border-hi:rgba(15,15,40,.22);
+    --text:#15162b; --muted:#5d6275; --dim:#9094a8;
+  }
+  html[data-theme="light"] body::before { background:rgba(254,44,85,.06); }
+  html[data-theme="light"] body::after  { background:rgba(37,244,238,.06); }
+  html[data-theme="light"] header { background:rgba(244,245,250,.75); }
+  html[data-theme="light"] nav { background:rgba(255,255,255,.88); box-shadow:0 14px 44px rgba(20,20,60,.16); }
+  html[data-theme="light"] .tile:hover { box-shadow:0 14px 40px rgba(20,20,60,.1); }
+  html[data-theme="light"] .card:hover { box-shadow:0 12px 34px rgba(20,20,60,.1); }
+  html[data-theme="light"] .ebar { background:rgba(15,15,40,.08); }
+  html[data-theme="light"] .mrow { border-bottom-color:rgba(15,15,40,.07); }
+  html[data-theme="light"] .topcard { background:rgba(15,15,40,.02); }
+  html[data-theme="light"] .panel p { color:#3c3f55; }
+  html[data-theme="light"] .tag { color:#d61f44; }
+  html[data-theme="light"] .tag.cat { color:#0b8a80; }
+  html[data-theme="light"] .tag.pend { color:#a35a00; }
+  html[data-theme="light"] .flow .step { color:#6d28d9; }
+  html[data-theme="light"] a { color:#0b8a80; }
+  html[data-theme="light"] .back { color:#0b8a80; }
+  html[data-theme="light"] .msg.ok { color:#0c7a52; }
+  html[data-theme="light"] #gate .box { background:#fff; }
+  html[data-theme="light"] #gate input { background:rgba(15,15,40,.04); }
+
+  main { padding:18px 16px 0; max-width:1180px; margin:0 auto; position:relative; z-index:1; }
+
+  /* entrance animation */
+  @keyframes rise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+  .rise { animation:rise .55s cubic-bezier(.2,.7,.2,1) both; }
+
+  /* ---- KPI strip ---- */
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:14px; }
+  .kpi {
+    background:var(--card); border:1px solid var(--border); border-radius:var(--r);
+    padding:16px 16px 13px; position:relative; overflow:hidden;
+    transition:transform .25s, border-color .25s;
+  }
+  .kpi:hover { transform:translateY(-3px); border-color:var(--border-hi); }
+  .kpi .v { font-family:"Space Grotesk"; font-size:26px; font-weight:700; letter-spacing:-.5px; }
+  .kpi .l { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-top:2px; }
+  .kpi .cmp { font-size:10.5px; margin-top:4px; font-weight:600; color:var(--dim); }
+  .kpi .cmp.up { color:var(--green); }
+  .kpi .cmp.down { color:#ff7d97; }
+  html[data-theme="light"] .kpi .cmp.up { color:#0c7a52; }
+  html[data-theme="light"] .kpi .cmp.down { color:#d61f44; }
+  .kpi::after { content:""; position:absolute; inset:auto 0 0 0; height:2px; background:linear-gradient(90deg,var(--pink),transparent); opacity:.55; }
+  .kpi:nth-child(2)::after { background:linear-gradient(90deg,var(--cyan),transparent); }
+  .kpi:nth-child(3)::after { background:linear-gradient(90deg,var(--violet),transparent); }
+  .kpi:nth-child(4)::after { background:linear-gradient(90deg,var(--amber),transparent); }
+  .kpi:nth-child(5)::after { background:linear-gradient(90deg,var(--green),transparent); }
+
+  /* ---- filter chips ---- */
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin:4px 0 16px; align-items:center; }
+  .chips .lbl { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-right:2px; }
+  .chip {
+    border:1px solid var(--border); background:var(--card); color:var(--muted);
+    border-radius:99px; padding:6px 14px; font-size:12.5px; font-weight:600; cursor:pointer;
+    transition:all .2s; user-select:none; font-family:"Inter";
+  }
+  .chip:hover { border-color:var(--border-hi); color:var(--text); }
+  .chip.on { background:linear-gradient(135deg,rgba(254,44,85,.22),rgba(139,92,246,.22)); border-color:rgba(254,44,85,.55); color:#fff; box-shadow:0 0 14px rgba(254,44,85,.25); }
+  .chip.cat.on { background:linear-gradient(135deg,rgba(37,244,238,.18),rgba(46,230,168,.16)); border-color:rgba(37,244,238,.5); box-shadow:0 0 14px rgba(37,244,238,.2); }
+  .chip.len.on { background:linear-gradient(135deg,rgba(255,176,46,.2),rgba(254,44,85,.12)); border-color:rgba(255,176,46,.55); box-shadow:0 0 14px rgba(255,176,46,.22); }
+  .chip.cta.on { background:linear-gradient(135deg,rgba(139,92,246,.22),rgba(37,244,238,.12)); border-color:rgba(139,92,246,.55); box-shadow:0 0 14px rgba(139,92,246,.25); }
+  .chip.reset { border-style:dashed; color:var(--dim); }
+  .csel { background:var(--card-solid); border:1px solid var(--border); border-radius:99px; padding:6px 12px;
+    font:600 12.5px "Inter"; color:var(--text); outline:none; cursor:pointer; max-width:180px; }
+  .creator { color:var(--cyan); font-weight:600; cursor:pointer; }
+  .creator:hover { text-shadow:0 0 10px rgba(37,244,238,.5); }
+  html[data-theme="light"] .creator { color:#0b8a80; }
+  .mini { display:flex; justify-content:space-between; gap:10px; align-items:center; padding:10px 12px;
+    border:1px solid var(--border); border-radius:12px; margin-bottom:8px; cursor:pointer;
+    background:rgba(255,255,255,.02); transition:all .2s; }
+  .mini:hover { border-color:var(--border-hi); transform:translateY(-1px); }
+  html[data-theme="light"] .mini { background:rgba(15,15,40,.02); }
+  .mini .t { font-size:12.5px; font-weight:600; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .mini .s { font-size:11px; color:var(--muted); white-space:nowrap; text-align:right; }
+
+  /* ---- bento grid ---- */
+  .bento { display:grid; grid-template-columns:repeat(12,1fr); gap:12px; margin-bottom:16px; }
+  .tile {
+    background:var(--card); border:1px solid var(--border); border-radius:var(--r);
+    padding:18px; position:relative; transition:transform .25s, border-color .25s, box-shadow .25s;
+    grid-column:span 12;
+  }
+  .tile:hover { transform:translateY(-3px); border-color:var(--border-hi); box-shadow:0 14px 40px rgba(0,0,0,.45); }
+  .tile h3 { font-family:"Space Grotesk"; font-size:13px; font-weight:600; color:var(--muted); letter-spacing:.8px; text-transform:uppercase; margin-bottom:4px; }
+  .tile .hint { font-size:11px; color:var(--dim); margin-bottom:10px; }
+  .tile .cw { position:relative; height:230px; }
+  @media (min-width:880px) {
+    .t-hookviews { grid-column:span 7; }
+    .t-cats { grid-column:span 5; }
+    .t-scatter { grid-column:span 5; }
+    .t-eng { grid-column:span 7; }
+    .t-top { grid-column:span 12; }
+  }
+
+  /* top performers */
+  .toprow { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; margin-top:10px; }
+  .topcard {
+    border:1px solid var(--border); border-radius:14px; padding:13px 14px; cursor:pointer;
+    background:rgba(255,255,255,.02); transition:all .2s; position:relative; overflow:hidden;
+  }
+  .topcard:hover { border-color:var(--border-hi); transform:translateY(-2px); }
+  .topcard .rank {
+    position:absolute; top:10px; right:12px; font-family:"Space Grotesk"; font-weight:700; font-size:22px;
+    background:linear-gradient(135deg,var(--pink),var(--cyan)); -webkit-background-clip:text; background-clip:text; color:transparent; opacity:.85;
+  }
+  .topcard .cap { font-weight:600; font-size:13.5px; padding-right:30px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .topcard .sub { color:var(--muted); font-size:12px; margin-top:6px; display:flex; gap:10px; align-items:center; }
+
+  /* ---- video cards ---- */
+  .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .toolbar input[type=search] {
+    flex:1; min-width:170px; background:var(--card); border:1px solid var(--border); border-radius:13px;
+    padding:11px 15px; color:var(--text); font:14px "Inter"; outline:none; transition:border-color .2s;
+  }
+  .toolbar input[type=search]:focus { border-color:rgba(254,44,85,.5); }
+  .toolbar select {
+    background:var(--card-solid); border:1px solid var(--border); border-radius:13px; padding:11px 13px;
+    color:var(--text); font:13px "Inter"; outline:none;
+  }
+  .card {
+    background:var(--card); border:1px solid var(--border); border-radius:var(--r);
+    padding:15px 17px; margin-bottom:11px; cursor:pointer; position:relative;
+    transition:transform .22s, border-color .22s, box-shadow .22s;
+  }
+  .card:hover { transform:translateY(-2px) scale(1.003); border-color:var(--border-hi); box-shadow:0 12px 34px rgba(0,0,0,.4); }
+  .card .top { display:flex; justify-content:space-between; gap:10px; margin-bottom:5px; }
+  .card .cap { font-weight:600; font-size:14.5px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .card .meta { color:var(--muted); font-size:12.5px; display:flex; gap:13px; flex-wrap:wrap; margin-top:7px; align-items:center; }
+  .ebar { height:4px; border-radius:99px; background:rgba(255,255,255,.07); margin-top:10px; overflow:hidden; }
+  .ebar i { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--cyan),var(--green)); box-shadow:0 0 8px rgba(37,244,238,.5); }
+
+  .tag { display:inline-block; padding:3px 11px; border-radius:99px; font-size:11px; font-weight:600; white-space:nowrap; height:fit-content; letter-spacing:.3px;
+    background:rgba(254,44,85,.14); color:#ff7d97; border:1px solid rgba(254,44,85,.3); }
+  .tag.cat { background:rgba(37,244,238,.1); color:#7df5f0; border-color:rgba(37,244,238,.25); }
+  .tag.pend { background:rgba(255,176,46,.12); color:#ffc964; border-color:rgba(255,176,46,.3); }
+  .tag.own { background:rgba(46,230,168,.12); color:#5eecbb; border-color:rgba(46,230,168,.35); }
+  html[data-theme="light"] .tag.own { color:#0c7a52; }
+  .ownin { display:flex; flex-direction:column; gap:4px; margin-bottom:10px; }
+  .ownin label { font-size:11px; color:var(--muted); font-weight:600; }
+  .ownin input { background:var(--card-solid); border:1px solid var(--border); border-radius:10px; padding:9px 12px;
+    font:14px "Inter"; color:var(--text); outline:none; }
+  .ownin input:focus { border-color:rgba(46,230,168,.5); }
+  .btn.sm { padding:11px 16px; font-size:13px; margin-top:4px; }
+  .btn.green { background:linear-gradient(135deg,#15b87f,#0c8a5f); box-shadow:0 6px 18px rgba(46,230,168,.25); }
+  .sugg { border-left:3px solid var(--amber); }
+  .sugg p { color:#e8d9b8; }
+  html[data-theme="light"] .sugg p { color:#6b5413; }
+  .domain { font-family:"Space Grotesk"; font-size:12px; font-weight:600; color:var(--dim); text-transform:uppercase;
+    letter-spacing:1.2px; margin:16px 0 8px; padding-left:2px; }
+  .scriptcard { border:1px solid var(--border); border-radius:14px; padding:13px 14px; margin-bottom:10px; background:rgba(139,92,246,.04); }
+  html[data-theme="light"] .scriptcard { background:rgba(139,92,246,.035); }
+  .scripthead { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .scripthead .sdate { color:var(--dim); font-size:11px; }
+  .scripthead .sdel { margin-left:auto; color:var(--dim); cursor:pointer; font-size:14px; padding:2px 6px; }
+  .scripthead .sdel:hover { color:#ff7d97; }
+  .sbrief { font-size:12px; color:var(--muted); font-style:italic; margin-bottom:8px; }
+  .scriptbody { font-size:13.5px; line-height:1.65; color:#dfe1ec; margin:8px 0; }
+  html[data-theme="light"] .scriptbody { color:#2c2f45; }
+  .vtabs { display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 4px; }
+  .vtab { background:var(--card-solid); border:1px solid var(--border); color:var(--muted); border-radius:9px;
+    padding:7px 11px; font:600 12px "Inter"; cursor:pointer; transition:all .2s; }
+  .vtab.on { background:linear-gradient(135deg,rgba(139,92,246,.25),rgba(37,244,238,.12)); border-color:rgba(139,92,246,.5); color:var(--text); }
+  .hooklabel { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.6px; font-weight:600; margin:8px 0 6px; }
+  .hookopt { display:flex; align-items:flex-start; gap:8px; padding:9px 11px; border:1px solid var(--border);
+    border-radius:11px; margin-bottom:7px; background:rgba(255,176,46,.04); }
+  .hooktext { flex:1; font-size:13.5px; line-height:1.5; font-style:italic; }
+  .refinebox { display:flex; gap:8px; margin-top:12px; }
+  .refinebox input { flex:1; background:var(--card-solid); border:1px solid var(--border); border-radius:10px;
+    padding:9px 12px; font:13px "Inter"; color:var(--text); outline:none; }
+  .refinebox input:focus { border-color:rgba(37,244,238,.5); }
+  .chip.painchip { border-color:rgba(255,176,46,.35); color:var(--amber); text-align:left; white-space:normal; }
+  .chip.painchip.on { background:linear-gradient(135deg,rgba(255,176,46,.22),rgba(254,44,85,.1)); border-color:rgba(255,176,46,.6); color:var(--text); }
+  .stars { color:var(--amber); font-size:12px; letter-spacing:1.5px; text-shadow:0 0 8px rgba(255,176,46,.5); }
+
+  /* ---- detail ---- */
+  .watch {
+    display:inline-flex; align-items:center; gap:8px; margin:10px 0 16px; padding:11px 20px;
+    background:linear-gradient(135deg,var(--pink),#c0246e); color:#fff !important; border-radius:12px;
+    font:700 14px "Space Grotesk"; letter-spacing:.3px; text-decoration:none;
+    box-shadow:0 8px 24px rgba(254,44,85,.3); transition:all .25s;
+  }
+  .watch:hover { transform:translateY(-2px); box-shadow:0 12px 32px rgba(254,44,85,.45); text-shadow:none; }
+  .back { color:var(--cyan); cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px; margin-bottom:14px; font-size:14px; }
+  .back:hover { text-shadow:0 0 12px rgba(37,244,238,.6); }
+  .panel { background:var(--card); border:1px solid var(--border); border-radius:var(--r); padding:18px; margin-bottom:12px; }
+  .panel h3 { font-family:"Space Grotesk"; font-size:12px; color:var(--muted); margin-bottom:12px; font-weight:600; text-transform:uppercase; letter-spacing:1px; }
+  .panel h3.ph { display:flex; align-items:center; gap:6px; }
+  .panel h3.ph .starbtn { margin-left:auto; }
+  .panel p { white-space:pre-wrap; color:#cfd2e0; }
+  .mrow { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:13.5px; }
+  .mrow:last-child { border-bottom:none; }
+  .mrow .k { color:var(--muted); flex-shrink:0; }
+  .hookquote {
+    background:linear-gradient(135deg,rgba(254,44,85,.1),rgba(139,92,246,.08));
+    border:1px solid rgba(254,44,85,.3); border-radius:14px; padding:15px 17px;
+    font-style:italic; margin-bottom:13px; font-size:15px; line-height:1.6;
+    box-shadow:inset 0 0 30px rgba(254,44,85,.05);
+  }
+  .flow { display:flex; flex-wrap:wrap; gap:7px; align-items:center; }
+  .flow .step {
+    background:rgba(139,92,246,.13); border:1px solid rgba(139,92,246,.35); color:#c4b0fa;
+    border-radius:10px; padding:6px 12px; font-size:12.5px; font-weight:600;
+  }
+  .flow .arr { color:var(--dim); font-size:13px; }
+  details summary { cursor:pointer; color:var(--muted); font-size:13px; font-weight:600; list-style:none; }
+  details summary::before { content:"▸ "; }
+  details[open] summary::before { content:"▾ "; }
+  details p { margin-top:10px; font-size:13px; color:var(--muted); }
+
+  .dgrid { display:grid; grid-template-columns:1fr; gap:0 14px; }
+  @media (min-width:880px) { .dgrid { grid-template-columns:1.7fr 1fr; } }
+
+  /* ---- nav (floating glass pill) ---- */
+  nav {
+    position:fixed; bottom:calc(14px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%);
+    display:flex; gap:4px; padding:6px; z-index:30;
+    background:rgba(14,14,26,.72); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+    border:1px solid var(--border-hi); border-radius:99px;
+    box-shadow:0 14px 44px rgba(0,0,0,.55);
+  }
+  nav button {
+    display:flex; align-items:center; gap:8px; background:none; border:none; cursor:pointer;
+    color:var(--muted); font:600 13px "Inter"; padding:10px 18px; border-radius:99px; transition:all .25s;
+  }
+  nav button svg { width:17px; height:17px; }
+  nav button.on { background:linear-gradient(135deg,rgba(254,44,85,.85),rgba(139,92,246,.85)); color:#fff; box-shadow:0 0 20px rgba(254,44,85,.4); }
+  nav button:not(.on) span { display:none; }
+  @media (min-width:600px){ nav button:not(.on) span { display:inline; } }
+
+  /* ---- forms / buttons ---- */
+  textarea {
+    width:100%; min-height:140px; background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:15px; font:14px/1.6 "Inter"; color:var(--text); resize:vertical; outline:none; transition:border-color .2s;
+  }
+  textarea:focus { border-color:rgba(254,44,85,.5); box-shadow:0 0 0 3px rgba(254,44,85,.1); }
+  .btn {
+    background:linear-gradient(135deg,var(--pink),#c0246e); color:#fff; border:none; border-radius:14px;
+    padding:15px 20px; font:700 15px "Space Grotesk"; width:100%; margin-top:12px; cursor:pointer;
+    letter-spacing:.4px; transition:all .25s; box-shadow:0 8px 26px rgba(254,44,85,.3);
+  }
+  .btn:hover { transform:translateY(-2px); box-shadow:0 12px 34px rgba(254,44,85,.45); }
+  .btn:disabled { opacity:.45; transform:none; }
+  .btn.ghost { background:transparent; color:#ff7d97; border:1px solid rgba(254,44,85,.4); box-shadow:none; }
+  .btn.ghost:hover { background:rgba(254,44,85,.08); }
+  .note { color:var(--muted); font-size:13px; margin:8px 0; }
+  .msg { padding:13px 16px; border-radius:13px; margin-top:12px; font-size:14px; display:none; }
+  .msg.ok { background:rgba(46,230,168,.12); color:var(--green); border:1px solid rgba(46,230,168,.3); display:block; }
+  .msg.err { background:rgba(254,44,85,.1); color:#ff7d97; border:1px solid rgba(254,44,85,.3); display:block; }
+  .center { text-align:center; color:var(--muted); padding:70px 20px; }
+  a { color:var(--cyan); text-decoration:none; }
+  a:hover { text-shadow:0 0 10px rgba(37,244,238,.5); }
+  h2 { font-family:"Space Grotesk"; font-size:21px; margin-bottom:8px; letter-spacing:-.3px; }
+
+  /* ---- gate ---- */
+  #gate { position:fixed; inset:0; background:var(--bg); z-index:100; display:flex; align-items:center; justify-content:center; padding:24px; }
+  #gate::before { content:""; position:absolute; width:440px; height:440px; border-radius:50%; background:rgba(254,44,85,.16); filter:blur(110px); }
+  #gate .box {
+    position:relative; background:rgba(255,255,255,.04); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+    border:1px solid var(--border-hi); border-radius:26px; padding:36px 28px; width:100%; max-width:380px; text-align:center;
+    box-shadow:0 24px 70px rgba(0,0,0,.6);
+  }
+  #gate .mark { width:54px; height:54px; margin:0 auto 14px; border-radius:16px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--pink),var(--violet)); font-size:26px; box-shadow:0 0 34px rgba(254,44,85,.5); }
+  #gate input {
+    width:100%; background:rgba(255,255,255,.05); border:1px solid var(--border-hi); border-radius:14px;
+    padding:15px; font:16px "Space Grotesk"; color:var(--text); text-align:center; margin:18px 0 4px;
+    outline:none; letter-spacing:1px;
+  }
+  #gate input:focus { border-color:var(--pink); box-shadow:0 0 0 3px rgba(254,44,85,.15); }
+</style>
+</head>
+<body>
+
+<div id="gate" style="display:none">
+  <div class="box rise">
+    <div class="mark">▶</div>
+    <h2>TikTok <em style="font-style:normal;background:linear-gradient(90deg,var(--pink),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent">Intel</em></h2>
+    <div class="note">Enter your access code to continue</div>
+    <input id="codeInput" type="text" autocapitalize="none" autocomplete="off" placeholder="access code">
+    <div id="gateErr" class="msg"></div>
+    <button class="btn" onclick="tryCode()">Unlock</button>
+  </div>
+</div>
+
+<header>
+  <div class="logo"><span class="mark">▶</span>TikTok&nbsp;<em>Intel</em></div>
+  <button id="reloadBtn" onclick="refreshData(this)" title="Refresh data">↻</button>
+  <button id="favBtn" onclick="openFav()" title="Favorites">★</button>
+  <button id="themeBtn" onclick="toggleTheme()" title="Switch theme">☀️</button>
+</header>
+<main id="view"><div class="center">Loading…</div></main>
+
+<nav>
+  <button id="nav-dash" onclick="go('dash')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 19V10M10 19V5M16 19v-7M21 19H3"/></svg><span>Dashboard</span>
+  </button>
+  <button id="nav-vids" onclick="go('vids')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="13" height="14" rx="3"/><path d="m16 10 5-3v10l-5-3"/></svg><span>Videos</span>
+  </button>
+  <button id="nav-prod" onclick="go('prod')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7 12 3 4 7v10l8 4 8-4z"/><path d="m4 7 8 4 8-4M12 21V11"/></svg><span>Products</span>
+  </button>
+  <button id="nav-add" onclick="go('add')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add</span>
+  </button>
+</nav>
+
+<script>
+const API = "https://zywuvwnzyagtnfnlunzh.supabase.co/functions/v1/tiktok/api";
+let videos = [], scripts = [], favorites = [], pains = [], charts = {}, tab = "dash", detailId = null, prodName = null, showFav = false;
+let fHook = null, fCat = null, fLen = null, fCta = null, fCreator = null, sortBy = "views", query = "";
+let scope = "all"; // dashboard: all | shop | non
+try { scope = localStorage.getItem("tt_scope") || "all"; } catch(e){}
+const LEN_BUCKETS = ["0–15s","15–30s","30–60s","60s+"];
+const lenBucket = v => { const d = v.duration_seconds; if (d==null) return null;
+  return d<15 ? "0–15s" : d<30 ? "15–30s" : d<60 ? "30–60s" : "60s+"; };
+
+/* ---------- theme ---------- */
+const curTheme = () => document.documentElement.dataset.theme || "dark";
+function applyTheme(t, rerender){
+  document.documentElement.dataset.theme = t;
+  try{ localStorage.setItem("tt_theme", t); }catch(e){}
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute("content", t==="light" ? "#f4f5fa" : "#07070e");
+  const b = document.getElementById("themeBtn");
+  if (b) b.textContent = t==="light" ? "🌙" : "☀️";
+  if (rerender) render();
+}
+window.toggleTheme = () => applyTheme(curTheme()==="light" ? "dark" : "light", true);
+
+/* ---------- helpers ---------- */
+const getCode = () => { try { return localStorage.getItem("tt_code") || ""; } catch(e){ return ""; } };
+const fmt = n => n==null ? "–" : n>=1e6 ? (n/1e6).toFixed(1)+"M" : n>=1e3 ? (n/1e3).toFixed(1)+"K" : String(Math.round(n));
+const esc = s => (s==null?"":String(s)).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const er = v => v.views ? ((v.likes||0)+(v.comments||0)+(v.shares||0)+(v.saves||0))/v.views*100 : 0;
+const stars = n => n ? "★".repeat(n)+"☆".repeat(5-n) : "–";
+const analyzed = () => videos.filter(v => v.status !== "pending");
+const group = (arr,key) => arr.reduce((g,v)=>{ const k=v[key]||"unknown"; (g[k]=g[k]||[]).push(v); return g; },{});
+
+function filtered(){
+  return scoped().filter(v =>
+    (!fHook || v.hook_type===fHook) &&
+    (!fCat || v.category===fCat) &&
+    (!fLen || lenBucket(v)===fLen) &&
+    (!fCta || v.cta_type===fCta) &&
+    (!fCreator || v.creator_handle===fCreator) &&
+    (!query || (v.caption||"").toLowerCase().includes(query) || (v.creator_handle||"").toLowerCase().includes(query)));
+}
+function saveState(){ try{ localStorage.setItem("tt_state", JSON.stringify({fHook,fCat,fLen,fCta,fCreator,sortBy})); }catch(e){} }
+function loadState(){ try{ const s=JSON.parse(localStorage.getItem("tt_state")||"{}"); fHook=s.fHook||null; fCat=s.fCat||null; fLen=s.fLen||null; fCta=s.fCta||null; fCreator=s.fCreator||null; sortBy=s.sortBy||"views"; }catch(e){} }
+
+/* count-up animation */
+function countUp(el, target, formatter){
+  const dur = 750, t0 = performance.now();
+  const step = t => {
+    const p = Math.min((t-t0)/dur, 1), e = 1-Math.pow(1-p,3);
+    el.textContent = formatter(target*e);
+    if (p<1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- api ---------- */
+function api(action, payload){
+  return fetch(API, { method:"POST", headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ code:getCode(), action, payload:payload||{} })
+  }).then(r => {
+    if (r.status===401){ showGate(); throw new Error("code"); }
+    if (!r.ok) throw new Error("server "+r.status);
+    return r.json();
+  });
+}
+function showGate(){ document.getElementById("gate").style.display="flex"; }
+function tryCode(){
+  const c = document.getElementById("codeInput").value.trim();
+  try{ localStorage.setItem("tt_code", c); }catch(e){}
+  api("list").then(d => { videos=d.videos||[]; document.getElementById("gate").style.display="none"; render(); })
+    .catch(e => { if (e.message==="code"){ const el=document.getElementById("gateErr"); el.className="msg err"; el.textContent="Wrong code — try again."; } });
+}
+function load(){
+  api("list").then(d => { videos=d.videos||[]; render(); })
+    .catch(e => { if (e.message!=="code") document.getElementById("view").innerHTML='<div class="center">Could not load data. Check your connection.</div>'; });
+  api("listScripts").then(d => { scripts=d.scripts||[]; if(tab==="prod") render(); }).catch(()=>{});
+  api("listFavorites").then(d => { favorites=d.favorites||[]; if(showFav||tab==="prod") render(); }).catch(()=>{});
+  api("listPains").then(d => { pains=d.pains||[]; if(tab==="prod"||detailId) render(); }).catch(()=>{});
+}
+function painsFor(product){ return pains.filter(pp => (pp.product_name||"").toLowerCase()===(product||"").toLowerCase()); }
+window.addPain = (product, videoId, inputId, msgId) => {
+  const inp = document.getElementById(inputId); const text = (inp.value||"").trim();
+  const msg = msgId?document.getElementById(msgId):null;
+  if (!text){ if(msg){msg.className="msg err";msg.textContent="Type a pain point first.";} return; }
+  const tmp = { id:"tmp"+Date.now(), product_name:product, text, source_video_id:videoId||null, created_at:new Date().toISOString() };
+  pains = [tmp, ...pains]; inp.value=""; render();
+  api("addPain", { product_name:product, text, source_video_id:videoId||null }).then(()=>reloadPains()).then(()=>{ if(msg){msg.className="msg ok";msg.textContent="Added ✓";} }).catch(()=>reloadPains());
+};
+window.delPain = id => { pains = pains.filter(pp=>pp.id!==id); render(); api("deletePain",{id}).catch(reloadPains); };
+function reloadPains(){ return api("listPains").then(d=>{ pains=d.pains||[]; }).catch(()=>{}); }
+function reloadScripts(){ return api("listScripts").then(d => { scripts=d.scripts||[]; }).catch(()=>{}); }
+window.refreshData = (btn) => {
+  if (btn){ btn.classList.remove("spin"); void btn.offsetWidth; btn.classList.add("spin"); }
+  return Promise.all([
+    api("list").then(d=>{ videos=d.videos||[]; }).catch(()=>{}),
+    api("listScripts").then(d=>{ scripts=d.scripts||[]; }).catch(()=>{}),
+    api("listFavorites").then(d=>{ favorites=d.favorites||[]; }).catch(()=>{}),
+    api("listPains").then(d=>{ pains=d.pains||[]; }).catch(()=>{})
+  ]).then(()=>render());
+};
+function reloadFavs(){ return api("listFavorites").then(d => { favorites=d.favorites||[]; }).catch(()=>{}); }
+
+/* ---------- favorites helpers ---------- */
+function favMatch(kind, key){ return favorites.find(f => f.kind===kind && ((f.ref_id&&f.ref_id===key) || (f.content&&f.content===key))); }
+window.toggleFav = (kind, key, title, meta) => {
+  const ev = window.event; if (ev) ev.stopPropagation();
+  const ex = favMatch(kind, key);
+  if (ex){
+    favorites = favorites.filter(f => f.id!==ex.id);
+    render();
+    api("deleteFavorite", { id: ex.id }).catch(reloadFavs);
+  } else {
+    const isRef = kind==="video";
+    const row = { kind, ref_id: isRef?key:null, content: isRef?null:key, title: title||null, meta: meta||null };
+    const tmp = { ...row, id: "tmp"+Date.now() };
+    favorites = [tmp, ...favorites];
+    render();
+    api("addFavorite", row).then(reloadFavs).then(()=>{ if(showFav||tab==="prod") render(); }).catch(reloadFavs);
+  }
+};
+function star(kind, key, title, metaObj){
+  const on = !!favMatch(kind, key);
+  const m = metaObj ? esc(JSON.stringify(metaObj)) : "";
+  return `<span class="starbtn ${on?"on":""}" onclick='toggleFav("${kind}", ${JSON.stringify(key)}, ${JSON.stringify(title||"")}, ${m?m:"null"})' title="${on?"Remove favorite":"Add to favorites"}">${on?"★":"☆"}</span>`;
+}
+
+/* ---------- routing ---------- */
+function go(t){ tab=t; detailId=null; prodName=null; showFav=false; render(); window.scrollTo(0,0); }
+function setNav(){ ["dash","vids","prod","add"].forEach(t => document.getElementById("nav-"+t).className = (t===tab&&!showFav)?"on":""); }
+window.openFav = () => { showFav=true; render(); window.scrollTo(0,0); };
+function render(){
+  setNav();
+  if (showFav) return renderFavorites();
+  if (detailId) return renderDetail();
+  if (tab==="dash") renderDash();
+  else if (tab==="vids") renderVids();
+  else if (tab==="prod") return prodName ? renderProductDetail() : renderProducts();
+  else renderAdd();
+}
+function scoped(){
+  const base = analyzed();
+  if (scope==="shop") return base.filter(v => v.is_shop_product===true);
+  if (scope==="non") return base.filter(v => v.is_shop_product===false);
+  return base;
+}
+window.setScope = s => { scope=s; try{ localStorage.setItem("tt_scope",s); }catch(e){} render(); };
+
+/* ---------- chips ---------- */
+function chipsHtml(){
+  const data = analyzed();
+  const hooks = [...new Set(data.map(v=>v.hook_type).filter(Boolean))].sort();
+  const cats = [...new Set(data.map(v=>v.category).filter(Boolean))].sort();
+  const ctas = [...new Set(data.map(v=>v.cta_type).filter(Boolean))].sort();
+  const lens = LEN_BUCKETS.filter(b => data.some(v=>lenBucket(v)===b));
+  const creators = [...new Set(data.map(v=>v.creator_handle).filter(Boolean))].sort();
+  let h = '<div class="chips rise" style="animation-delay:.05s">';
+  if (creators.length){
+    h += '<span class="lbl">Creator</span><select class="csel" onchange="setCreator(this.value)">';
+    h += `<option value="">all creators</option>`;
+    creators.forEach(c => h += `<option value="${esc(c)}" ${fCreator===c?"selected":""}>${esc(c)}</option>`);
+    h += '</select>';
+  }
+  h += '<span class="lbl" style="margin-left:8px">Hook</span>';
+  hooks.forEach(x => h += `<button class="chip ${fHook===x?"on":""}" onclick="toggleHook('${esc(x)}')">${esc(x)}</button>`);
+  h += '<span class="lbl" style="margin-left:8px">Category</span>';
+  cats.forEach(x => h += `<button class="chip cat ${fCat===x?"on":""}" onclick="toggleCat('${esc(x)}')">${esc(x)}</button>`);
+  if (lens.length){
+    h += '<span class="lbl" style="margin-left:8px">Length</span>';
+    lens.forEach(x => h += `<button class="chip len ${fLen===x?"on":""}" onclick="toggleLen('${esc(x)}')">${esc(x)}</button>`);
+  }
+  if (ctas.length){
+    h += '<span class="lbl" style="margin-left:8px">CTA</span>';
+    ctas.forEach(x => h += `<button class="chip cta ${fCta===x?"on":""}" onclick="toggleCta('${esc(x)}')">${esc(x)}</button>`);
+  }
+  if (fHook||fCat||fLen||fCta||fCreator) h += '<button class="chip reset" onclick="resetFilters()">✕ clear</button>';
+  return h + "</div>";
+}
+window.toggleHook = x => { fHook = fHook===x?null:x; saveState(); render(); };
+window.toggleCat = x => { fCat = fCat===x?null:x; saveState(); render(); };
+window.toggleLen = x => { fLen = fLen===x?null:x; saveState(); render(); };
+window.toggleCta = x => { fCta = fCta===x?null:x; saveState(); render(); };
+window.setCreator = x => { fCreator = x||null; saveState(); render(); };
+window.filterCreator = (e,x) => { e.stopPropagation(); fCreator = x; saveState(); detailId=null; tab="vids"; render(); window.scrollTo(0,0); };
+window.resetFilters = () => { fHook=null; fCat=null; fLen=null; fCta=null; fCreator=null; saveState(); render(); };
+
+/* ---------- dashboard ---------- */
+function kpi(v,l,raw,fmtFn,sub){ return `<div class="kpi"><div class="v" ${raw!=null?`data-n="${raw}" data-f="${fmtFn}"`:""}>${v}</div><div class="l">${l}</div>${sub||""}</div>`; }
+
+/* creator average comparison — average across ALL videos of this creator (incl. current) */
+function creatorAvgs(v){
+  const all = videos.filter(x => x.creator_handle===v.creator_handle && x.status==="analyzed" && x.views!=null);
+  if (all.length < 2) return null;
+  const m = k => all.reduce((a,x)=>a+(Number(x[k])||0),0)/all.length;
+  return { n:all.length, views:m("views"), likes:m("likes"), comments:m("comments"), shares:m("shares"),
+           saves:m("saves"), er:all.reduce((a,x)=>a+er(x),0)/all.length, dur:m("duration_seconds") };
+}
+function cmp(val, avg, fmtFn, neutral){
+  if (avg==null || val==null) return "";
+  const f = fmtFn || fmt;
+  if (neutral) return `<div class="cmp">avg ${f(avg)}</div>`;
+  const up = Number(val) >= avg;
+  return `<div class="cmp ${up?"up":"down"}">${up?"▲":"▼"} avg ${f(avg)}</div>`;
+}
+
+function renderDash(){
+  const data = filtered();
+  const pending = videos.filter(v=>v.status==="pending").length;
+  if (!analyzed().length){
+    document.getElementById("view").innerHTML = `<div class="center rise">No analyzed videos yet.<br>${pending? pending+" video(s) waiting in the queue." : "Add links via the Add tab."}</div>`;
+    return;
+  }
+  let avgV=0, avgE=0, avgD=0;
+  data.forEach(v=>{ avgV+=v.views||0; avgE+=er(v); avgD+=v.duration_seconds||0; });
+  if (data.length){ avgV/=data.length; avgE/=data.length; avgD/=data.length; }
+  const byHook = group(data,"hook_type");
+  let topHook="–", best=-1;
+  Object.entries(byHook).forEach(([k,arr])=>{ const m=arr.reduce((a,v)=>a+(v.views||0),0)/arr.length; if(m>best){best=m;topHook=k;} });
+
+  const cShop = analyzed().filter(v=>v.is_shop_product===true).length;
+  const cNon = analyzed().filter(v=>v.is_shop_product===false).length;
+  let h = `<div class="seg rise">
+      <button class="${scope==="all"?"on":""}" onclick="setScope('all')">All (${cShop+cNon})</button>
+      <button class="${scope==="shop"?"on":""}" onclick="setScope('shop')">🛒 Shop (${cShop})</button>
+      <button class="${scope==="non"?"on":""}" onclick="setScope('non')">Non-shop (${cNon})</button>
+    </div>`;
+  h += `<div class="kpis rise">` +
+    kpi("0","videos",data.length,"int") +
+    kpi("0","avg views",Math.round(avgV),"big") +
+    kpi("0","avg engagement",avgE,"pct") +
+    kpi("0","avg length",Math.round(avgD),"sec") +
+    kpi(esc(topHook),"best hook") +
+    (pending? kpi("0","in queue",pending,"int"):"") + "</div>";
+  h += chipsHtml();
+  h += `<div class="bento">
+    <div class="tile t-hookviews rise" style="animation-delay:.08s"><h3>Avg views by hook type</h3><div class="hint">Tap a bar to filter everything</div><div class="cw"><canvas id="cHook"></canvas></div></div>
+    <div class="tile t-cats rise" style="animation-delay:.12s"><h3>Format mix</h3><div class="hint">Tap a segment to filter</div><div class="cw"><canvas id="cCat"></canvas></div></div>
+    <div class="tile t-scatter rise" style="animation-delay:.16s"><h3>Length × views × engagement</h3><div class="hint">Bubble size = engagement rate · tap to open</div><div class="cw"><canvas id="cDur"></canvas></div></div>
+    <div class="tile t-eng rise" style="animation-delay:.2s"><h3>Engagement by hook type</h3><div class="hint">(likes + comments + shares + saves) / views</div><div class="cw"><canvas id="cEng"></canvas></div></div>
+    <div class="tile t-top rise" style="animation-delay:.24s"><h3>Top performers</h3><div class="toprow">${topCardsHtml(data)}</div></div>
+  </div>`;
+  document.getElementById("view").innerHTML = h;
+
+  document.querySelectorAll(".kpi .v[data-n]").forEach(el=>{
+    const n = parseFloat(el.dataset.n), f = el.dataset.f;
+    countUp(el, n, f==="pct" ? x=>x.toFixed(1)+"%" : f==="sec" ? x=>Math.round(x)+"s" : f==="big" ? x=>fmt(x) : x=>String(Math.round(x)));
+  });
+  drawCharts(data);
+}
+
+function topCardsHtml(data){
+  const top = [...data].sort((a,b)=>(b.views||0)-(a.views||0)).slice(0,3);
+  if (!top.length) return '<div class="note">No data for the current filters.</div>';
+  return top.map((v,i)=>`
+    <div class="topcard" onclick="openDetail('${v.id}')">
+      <div class="rank">#${i+1}</div>
+      <div class="cap">${esc(v.caption)||esc(v.url)}</div>
+      <div class="sub">${v.creator_handle?`<span class="creator" onclick="filterCreator(event,'${esc(v.creator_handle)}')">${esc(v.creator_handle)}</span>`:""}<span>${fmt(v.views)} views</span><span>${er(v).toFixed(1)}% eng</span><span class="tag" style="font-size:10px">${esc(v.hook_type)||"?"}</span></div>
+    </div>`).join("");
+}
+
+/* ---------- charts ---------- */
+function mk(id,cfg,plugins){ if(charts[id])charts[id].destroy(); const el=document.getElementById(id); if(el)charts[id]=new Chart(el,plugins?{...cfg,plugins}:cfg); }
+
+function drawCharts(data){
+  const light = curTheme()==="light";
+  Chart.defaults.color = light ? "#5d6275" : "#878ca3";
+  Chart.defaults.font.family = "'Inter',sans-serif";
+  Chart.defaults.font.size = 11.5;
+  const gridCol = light ? "rgba(15,15,40,.08)" : "rgba(255,255,255,.055)";
+  const tt = {
+    backgroundColor: light ? "rgba(255,255,255,.97)" : "rgba(10,10,20,.92)",
+    borderColor: light ? "rgba(15,15,40,.15)" : "rgba(255,255,255,.14)", borderWidth:1,
+    titleColor: light ? "#15162b" : "#f2f3f8", bodyColor: light ? "#3c3f55" : "#cfd2e0",
+    padding:12, cornerRadius:12, titleFont:{family:"'Space Grotesk'",weight:"600"}, displayColors:false
+  };
+  const pal = ["#fe2c55","#25f4ee","#8b5cf6","#ffb02e","#2ee6a8","#ec4899","#60a5fa","#94a3b8"];
+  const byHook = group(data,"hook_type"), hl = Object.keys(byHook);
+
+  const ctx1 = document.getElementById("cHook");
+  if (ctx1){
+    const g = ctx1.getContext("2d").createLinearGradient(0,0,0,230);
+    g.addColorStop(0,"rgba(254,44,85,.95)"); g.addColorStop(1,"rgba(139,92,246,.5)");
+    if (charts.cHook) charts.cHook.destroy();
+    charts.cHook = new Chart(ctx1,{ type:"bar",
+      data:{ labels:hl, datasets:[{ data:hl.map(k=>Math.round(byHook[k].reduce((a,v)=>a+(v.views||0),0)/byHook[k].length)),
+        backgroundColor:g, hoverBackgroundColor:"#fe2c55", borderRadius:10, borderSkipped:false, maxBarThickness:46 }]},
+      options:{ maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{...tt, callbacks:{label:c=>fmt(c.raw)+" avg views"}} },
+        onClick:(e,els)=>{ if(els.length) toggleHook(hl[els[0].index]); },
+        scales:{ x:{grid:{display:false}}, y:{grid:{color:gridCol}, border:{display:false}, ticks:{callback:v=>fmt(v)}} } }});
+  }
+
+  const byCat = group(data,"category"), cl = Object.keys(byCat);
+  const centerText = { id:"ct", afterDraw(c){ const {ctx,chartArea}=c; if(!chartArea) return;
+    const {width,height,top,left}=chartArea;
+    ctx.save(); ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.font="700 26px 'Space Grotesk'"; ctx.fillStyle = light ? "#15162b" : "#f2f3f8";
+    ctx.fillText(String(data.length), left+width/2, top+height/2-8);
+    ctx.font="600 10px 'Inter'"; ctx.fillStyle = light ? "#5d6275" : "#878ca3";
+    ctx.fillText("VIDEOS", left+width/2, top+height/2+13); ctx.restore(); } };
+  const ctx2 = document.getElementById("cCat");
+  if (ctx2){
+    if (charts.cCat) charts.cCat.destroy();
+    charts.cCat = new Chart(ctx2,{ type:"doughnut",
+      data:{ labels:cl, datasets:[{ data:cl.map(k=>byCat[k].length), backgroundColor:pal,
+        borderColor: light ? "#ffffff" : "#0a0a14", borderWidth:3, hoverOffset:10 }]},
+      options:{ maintainAspectRatio:false, cutout:"72%",
+        onClick:(e,els)=>{ if(els.length) toggleCat(cl[els[0].index]); },
+        plugins:{ legend:{position:"right", labels:{usePointStyle:true, pointStyle:"circle", boxWidth:7, padding:13}}, tooltip:tt } },
+      plugins:[centerText] });
+  }
+
+  const ctx3 = document.getElementById("cDur");
+  if (ctx3){
+    if (charts.cDur) charts.cDur.destroy();
+    charts.cDur = new Chart(ctx3,{ type:"bubble",
+      data:{ datasets:[{ data:data.map(v=>({x:v.duration_seconds||0, y:v.views||0, r:Math.max(5,Math.min(18,er(v)*1.1)), _v:v})),
+        backgroundColor:"rgba(37,244,238,.3)", borderColor:"#25f4ee", borderWidth:1.5, hoverBackgroundColor:"rgba(37,244,238,.7)" }]},
+      options:{ maintainAspectRatio:false,
+        onClick:(e,els)=>{ if(els.length){ const v=charts.cDur.data.datasets[0].data[els[0].index]._v; openDetail(v.id);} },
+        plugins:{ legend:{display:false}, tooltip:{...tt, callbacks:{label:c=>{const v=c.raw._v; return [(v.caption||"").slice(0,42), fmt(v.views)+" views · "+er(v).toFixed(1)+"% · "+(v.duration_seconds||0)+"s"];}}} },
+        scales:{ x:{title:{display:true,text:"seconds",color:"#5a5f78"}, grid:{color:gridCol}, border:{display:false}},
+                 y:{grid:{color:gridCol}, border:{display:false}, ticks:{callback:v=>fmt(v)}} } }});
+  }
+
+  const ctx4 = document.getElementById("cEng");
+  if (ctx4){
+    const g2 = ctx4.getContext("2d").createLinearGradient(0,0,600,0);
+    g2.addColorStop(0,"rgba(37,244,238,.85)"); g2.addColorStop(1,"rgba(46,230,168,.5)");
+    if (charts.cEng) charts.cEng.destroy();
+    charts.cEng = new Chart(ctx4,{ type:"bar",
+      data:{ labels:hl, datasets:[{ data:hl.map(k=>+(byHook[k].reduce((a,v)=>a+er(v),0)/byHook[k].length).toFixed(1)),
+        backgroundColor:g2, hoverBackgroundColor:"#25f4ee", borderRadius:9, borderSkipped:false, maxBarThickness:26 }]},
+      options:{ indexAxis:"y", maintainAspectRatio:false,
+        onClick:(e,els)=>{ if(els.length) toggleHook(hl[els[0].index]); },
+        plugins:{ legend:{display:false}, tooltip:{...tt, callbacks:{label:c=>c.raw+"% engagement"}} },
+        scales:{ x:{grid:{color:gridCol}, border:{display:false}, ticks:{callback:v=>v+"%"}}, y:{grid:{display:false}} } }});
+  }
+}
+
+/* ---------- videos list ---------- */
+function renderVids(){
+  if (!videos.length){
+    document.getElementById("view").innerHTML = '<div class="center rise">No videos yet. Add links via the Add tab.</div>';
+    return;
+  }
+  let h = `<div class="toolbar rise">
+    <input type="search" id="q" placeholder="Search caption or creator…" value="${esc(query)}" oninput="setQuery(this.value)">
+    <select id="sort" onchange="setSort(this.value)">
+      <option value="views" ${sortBy==="views"?"selected":""}>Most views</option>
+      <option value="er" ${sortBy==="er"?"selected":""}>Highest engagement</option>
+      <option value="new" ${sortBy==="new"?"selected":""}>Newest</option>
+      <option value="short" ${sortBy==="short"?"selected":""}>Shortest</option>
+    </select>
+  </div>`;
+  h += chipsHtml();
+
+  const pend = videos.filter(v=>v.status==="pending" && (!query || v.url.toLowerCase().includes(query)));
+  let list = filtered();
+  const maxEr = Math.max(1,...list.map(er));
+  list = [...list].sort((a,b)=> sortBy==="er" ? er(b)-er(a) : sortBy==="new" ? String(b.posted_at||"").localeCompare(String(a.posted_at||"")) : sortBy==="short" ? (a.duration_seconds||999)-(b.duration_seconds||999) : (b.views||0)-(a.views||0));
+
+  pend.forEach((v,i)=>{ h += `
+    <div class="card rise" style="animation-delay:${Math.min(i*40,400)}ms" onclick="openDetail('${v.id}')">
+      <div class="top"><div class="cap" style="color:var(--muted)">${esc(v.url)}</div><span class="tag pend">queued</span></div>
+      <div class="meta"><span>waiting for analysis</span></div>
+    </div>`; });
+  list.forEach((v,i)=>{ h += `
+    <div class="card rise" style="animation-delay:${Math.min((pend.length+i)*40,500)}ms" onclick="openDetail('${v.id}')">
+      <div class="top"><div class="cap">${esc(v.caption)||esc(v.url)}</div><span style="display:flex;gap:5px">${v.is_own?'<span class="tag own">OWN</span>':""}<span class="tag">${esc(v.hook_type)||"?"}</span></span></div>
+      <div class="meta">
+        ${v.creator_handle?`<span class="creator" onclick="filterCreator(event,'${esc(v.creator_handle)}')">${esc(v.creator_handle)}</span>`:""}
+        <span>${fmt(v.views)} views</span><span>${er(v).toFixed(1)}% eng</span>
+        ${v.duration_seconds!=null?`<span>${v.duration_seconds}s</span>`:""}
+        ${v.category?`<span class="tag cat">${esc(v.category)}</span>`:""}
+      </div>
+      <div class="ebar"><i style="width:${Math.min(100,er(v)/maxEr*100)}%"></i></div>
+    </div>`; });
+  if (!pend.length && !list.length) h += '<div class="center">Nothing matches the current filters.</div>';
+  document.getElementById("view").innerHTML = h;
+}
+window.setQuery = v => { query = v.toLowerCase(); renderVids(); const el=document.getElementById("q"); if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); } };
+window.setSort = v => { sortBy = v; saveState(); renderVids(); };
+
+/* ---------- detail ---------- */
+window.openDetail = id => { detailId=id; render(); window.scrollTo(0,0); };
+function renderDetail(){
+  const v = videos.find(x=>x.id===detailId);
+  if (!v){ detailId=null; return render(); }
+  const pend = v.status==="pending";
+  let h = `<span class="back rise" onclick="go('vids')">← Back to videos</span>
+    <div class="rise" style="display:flex;align-items:flex-start;gap:10px"><h2 style="flex:1">${esc(v.caption)||"(no caption)"}</h2><span style="font-size:22px">${star("video", v.id, esc(v.caption)||v.url)}</span></div>
+    <div class="note rise">${v.creator_handle?`<span class="creator" onclick="filterCreator(event,'${esc(v.creator_handle)}')">${esc(v.creator_handle)}</span>`:""}${v.posted_at?" · "+esc(v.posted_at):""}</div>
+    <a class="watch rise" href="${esc(v.url)}" target="_blank" rel="noopener">▶ Watch on TikTok</a><br>`;
+  if (pend){
+    h += '<div class="panel rise"><p>This video is in the queue and will be processed on the next analysis run.</p></div>';
+  } else {
+    const A = creatorAvgs(v);
+    h += `<div class="kpis rise" style="animation-delay:.05s">` +
+      kpi(fmt(v.views),"views",null,null, A&&cmp(v.views,A.views)) +
+      kpi(fmt(v.likes),"likes",null,null, A&&cmp(v.likes,A.likes)) +
+      kpi(fmt(v.comments),"comments",null,null, A&&cmp(v.comments,A.comments)) +
+      kpi(fmt(v.shares),"shares",null,null, A&&cmp(v.shares,A.shares)) +
+      kpi(fmt(v.saves),"saves",null,null, A&&cmp(v.saves,A.saves)) +
+      kpi(er(v).toFixed(1)+"%","engagement",null,null, A&&cmp(er(v),A.er,x=>x.toFixed(1)+"%")) +
+      kpi((v.duration_seconds??"–")+"s","length",null,null, A&&cmp(v.duration_seconds,A.dur,x=>Math.round(x)+"s",true)) +
+      (v.avg_watch_seconds!=null ? kpi(Number(v.avg_watch_seconds)+"s","avg watch") : "") +
+      (v.full_watch_rate!=null ? kpi(Number(v.full_watch_rate)+"%","watched full") : "") + "</div>";
+    if (A) h += `<div class="note rise" style="animation-delay:.07s;font-size:11.5px;color:var(--dim)">▲▼ vs. ${esc(v.creator_handle)}'s average across all ${A.n} videos in your library</div>`;
+    const steps = (v.structure||"").split(">").map(s=>s.trim()).filter(Boolean);
+    h += `<div class="dgrid"><div>
+      <div class="panel rise" style="animation-delay:.1s"><h3 class="ph">Hook ${v.hook_text?star("hook", v.hook_text, esc(v.creator_handle||""), {product:v.product_name||null, source:v.creator_handle}):""}</h3>
+        <div class="hookquote">“${esc(v.hook_text)||"–"}”</div>
+        <div class="mrow"><span class="k">Type</span><span class="tag">${esc(v.hook_type)||"–"}</span></div>
+        <div class="mrow"><span class="k">Strength</span><span class="stars">${stars(v.hook_strength)}</span></div>
+      </div>
+      <div class="panel rise" style="animation-delay:.14s"><h3>Script structure</h3>
+        ${steps.length?`<div class="flow">${steps.map((s,i)=>`<span class="step">${esc(s)}</span>${i<steps.length-1?'<span class="arr">→</span>':""}`).join("")}</div>`:"<p>–</p>"}
+      </div>
+      <div class="panel rise" style="animation-delay:.18s"><h3 class="ph">Analysis notes ${v.analysis_notes?star("insight", v.analysis_notes, (esc(v.creator_handle||"")+" · notes"), {source:v.creator_handle}):""}</h3><p>${esc(v.analysis_notes)||"–"}</p></div>
+      ${v.suggestions?`<div class="panel sugg rise" style="animation-delay:.2s"><h3 class="ph">💡 How this post could be better ${star("insight", v.suggestions, (esc(v.creator_handle||"")+" · suggestions"), {source:v.creator_handle})}</h3><p>${esc(v.suggestions)}</p></div>`:""}
+      ${v.transcript?`<div class="panel rise" style="animation-delay:.22s"><details><summary>Transcript</summary><p>${esc(v.transcript)}</p></details></div>`:""}
+      ${(v.is_shop_product&&v.product_name)?painPanel(v.product_name, v.id):""}
+    </div><div>
+      <div class="panel rise" style="animation-delay:.12s"><h3>Attributes</h3>
+        <div class="mrow"><span class="k">Category</span><span class="tag cat">${esc(v.category)||"–"}</span></div>
+        <div class="mrow"><span class="k">Contains product</span><span>${v.has_product==null?"–":v.has_product?"yes":"no"}</span></div>
+        ${v.has_product&&v.product_name?`<div class="mrow"><span class="k">Product</span><span class="creator" style="text-align:right" onclick="openProductFromVideo('${esc(v.product_name).replace(/'/g,"\\'")}')">${esc(v.product_name)} ↗</span></div>`:""}
+        <div class="mrow"><span class="k">Product type</span><span>${esc(v.product_type)||"–"}</span></div>
+        <div class="mrow"><span class="k">CTA type</span><span>${esc(v.cta_type)||"–"}</span></div>
+        <div class="mrow"><span class="k">CTA text ${v.cta_text?star("cta", v.cta_text, esc(v.creator_handle||""), {source:v.creator_handle}):""}</span><span style="text-align:right">${esc(v.cta_text)||"–"}</span></div>
+        <div class="mrow"><span class="k">On-screen text</span><span>${v.on_screen_text==null?"–":v.on_screen_text?"yes":"no"}</span></div>
+        <div class="mrow"><span class="k">Voiceover</span><span>${v.voiceover==null?"–":v.voiceover?"yes":"no"}</span></div>
+      </div>
+      <div class="panel rise" style="animation-delay:.16s"><h3>Conversion (optional)</h3>
+        <div class="mrow"><span class="k">Est. GMV</span><span>${v.gmv_estimate!=null?"€"+Number(v.gmv_estimate).toLocaleString("en-US"):"–"}</span></div>
+        <div class="mrow"><span class="k">Units sold</span><span>${v.units_sold??"–"}</span></div>
+      </div>
+      <div class="panel rise" style="animation-delay:.18s"><h3>${v.is_own?"Your TikTok Studio stats":"Own video? Add Studio stats"}</h3>
+        <div class="ownin"><label>Avg watch time (seconds)</label><input id="ownAvg" type="number" step="0.1" value="${v.avg_watch_seconds??""}" placeholder="e.g. 12.4"></div>
+        <div class="ownin"><label>Watched full video (%)</label><input id="ownFull" type="number" step="0.1" value="${v.full_watch_rate??""}" placeholder="e.g. 18.5"></div>
+        <div class="ownin"><label>New followers</label><input id="ownFol" type="number" value="${v.new_followers??""}" placeholder="e.g. 12"></div>
+        <button class="btn sm green" onclick="saveOwn('${v.id}')">Save stats</button>
+        <div id="ownMsg" class="msg"></div>
+      </div>
+      ${moreFromCreator(v)}
+    </div></div>`;
+  }
+  h += `<button class="btn ghost rise" style="animation-delay:.26s" onclick="delVid('${v.id}')">Delete video</button>`;
+  document.getElementById("view").innerHTML = h;
+}
+function moreFromCreator(v){
+  if (!v.creator_handle) return "";
+  const others = videos.filter(x => x.creator_handle===v.creator_handle && x.id!==v.id)
+    .sort((a,b)=>String(a.posted_at||"").localeCompare(String(b.posted_at||"")));
+  if (!others.length) return "";
+  return `<div class="panel rise" style="animation-delay:.2s"><h3>More from ${esc(v.creator_handle)}</h3>` +
+    others.map(o => `
+      <div class="mini" onclick="openDetail('${o.id}')">
+        <div class="t">${esc(o.caption)||esc(o.url)}</div>
+        <div class="s">${o.status==="pending" ? "queued" : fmt(o.views)+" views<br>"+er(o).toFixed(1)+"% eng"}</div>
+      </div>`).join("") + "</div>";
+}
+
+window.saveOwn = id => {
+  const g = x => { const el = document.getElementById(x); return el && el.value !== "" ? el.value : null; };
+  const payload = { id, is_own: true, avg_watch_seconds: g("ownAvg"), full_watch_rate: g("ownFull"), new_followers: g("ownFol") };
+  api("own", payload).then(() => {
+    const v = videos.find(x=>x.id===id);
+    if (v){ v.is_own = true; v.avg_watch_seconds = payload.avg_watch_seconds; v.full_watch_rate = payload.full_watch_rate; v.new_followers = payload.new_followers; }
+    const m = document.getElementById("ownMsg"); if (m){ m.className="msg ok"; m.textContent="Saved ✓"; }
+    setTimeout(()=>render(), 600);
+  }).catch(()=>{ const m = document.getElementById("ownMsg"); if (m){ m.className="msg err"; m.textContent="Save failed — try again."; } });
+};
+
+window.delVid = id => {
+  if (!confirm("Delete this video?")) return;
+  api("delete",{id}).then(()=>{ videos=videos.filter(v=>v.id!==id); go("vids"); })
+    .catch(()=>alert("Delete failed."));
+};
+
+/* ---------- pain points ---------- */
+function painPanel(product, videoId){
+  const list = painsFor(product);
+  return `<div class="panel rise" style="animation-delay:.24s;border-left:3px solid var(--amber)">
+    <h3 class="ph">🎯 Pain points / objections</h3>
+    <div class="note" style="margin-top:0">Concerns viewers have about <b>${esc(product)}</b>. Captured here, then reframed positively in your scripts.</div>
+    ${list.length ? list.map(pp=>`<div class="hookopt" style="background:rgba(255,176,46,.05)"><div class="hooktext" style="font-style:normal">${esc(pp.text)}</div><span class="sdel" style="align-self:center" onclick="delPain('${pp.id}')">✕</span></div>`).join("") : `<div class="note" style="font-size:12px">None yet. Add the objections people raise — e.g. "does this clog pores?"</div>`}
+    <div class="refinebox" style="margin-top:10px">
+      <input type="text" id="pp_${videoId}" placeholder='e.g. "does the salve clog pores?"'>
+      <button class="btn sm" style="background:linear-gradient(135deg,var(--amber),#e08600);color:#3a2600;width:auto;margin:0;padding:9px 14px" onclick="addPain('${esc(product).replace(/'/g,"\\'")}','${videoId}','pp_${videoId}',null)">Add</button>
+    </div>
+  </div>`;
+}
+
+/* ---------- products ---------- */
+function productGroups(){
+  const withProd = analyzed().filter(v => v.has_product && v.product_name);
+  const g = {};
+  withProd.forEach(v => {
+    const k = v.product_name;
+    if (!g[k]) g[k] = { name:k, category:v.product_category||"–", domain:v.product_domain||"–", vids:[] };
+    g[k].vids.push(v);
+  });
+  return Object.values(g).sort((a,b)=>b.vids.length-a.vids.length);
+}
+function domainGroups(){
+  const groups = productGroups();
+  const d = {};
+  groups.forEach(g => { const k=g.domain||"other"; (d[k]=d[k]||[]).push(g); });
+  return d;
+}
+
+function renderProducts(){
+  const groups = productGroups();
+  const noProd = analyzed().filter(v => v.has_product===false).length;
+  if (!groups.length){
+    document.getElementById("view").innerHTML = `<div class="center rise">No product videos yet.<br>${noProd? noProd+" analyzed video(s) contain no product." : "Add product videos via the Add tab."}</div>`;
+    return;
+  }
+  const byDomain = domainGroups();
+  let h = `<h2 class="rise">Products</h2>
+    <div class="note rise">Reference videos grouped by product. Tap a product to see all references and generate a fresh script from the best of them.</div>`;
+  Object.keys(byDomain).sort().forEach((domain, di) => {
+    h += `<div class="domain rise" style="animation-delay:${.05+di*.04}s">${esc(domain)}</div>`;
+    byDomain[domain].sort((a,b)=>b.vids.length-a.vids.length).forEach((g,i) => {
+      const avgE = g.vids.reduce((a,v)=>a+er(v),0)/g.vids.length;
+      const avgV = g.vids.reduce((a,v)=>a+(v.views||0),0)/g.vids.length;
+      const sc = scripts.filter(s => (s.product_name||"").toLowerCase()===g.name.toLowerCase());
+      h += `<div class="card rise" style="animation-delay:${.08+i*.04}s" onclick="openProduct('${esc(g.name).replace(/'/g,"\\'")}')">
+        <div class="top"><div class="cap">${esc(g.name)}</div><span class="tag cat">${g.vids.length} ref${g.vids.length>1?"s":""}</span></div>
+        <div class="meta"><span>${esc(g.category)}</span><span>avg ${fmt(Math.round(avgV))} views</span><span>avg ${avgE.toFixed(1)}% eng</span>${sc.length?`<span class="tag" style="background:rgba(139,92,246,.15);color:#c4b0fa;border-color:rgba(139,92,246,.35)">${sc.length} script${sc.length>1?"s":""}</span>`:""}</div>
+      </div>`;
+    });
+  });
+  document.getElementById("view").innerHTML = h;
+}
+window.openProduct = name => { prodName = name; render(); window.scrollTo(0,0); };
+
+function renderProductDetail(){
+  const g = productGroups().find(x => x.name===prodName);
+  if (!g){ prodName=null; return render(); }
+  const vids = [...g.vids].sort((a,b)=>er(b)-er(a));
+  const avgE = vids.reduce((a,v)=>a+er(v),0)/vids.length;
+  const best = vids[0];
+  const sc = scripts.filter(s => (s.product_name||"").toLowerCase()===g.name.toLowerCase());
+  let h = `<span class="back rise" onclick="go('prod')">← Back to products</span>
+    <h2 class="rise">${esc(g.name)}</h2>
+    <div class="note rise">${esc(g.category)} · ${esc(g.domain)} · ${vids.length} reference video${vids.length>1?"s":""} · avg ${avgE.toFixed(1)}% engagement</div>`;
+
+  // generate script panel
+  h += `<div class="panel rise" style="animation-delay:.06s;border-left:3px solid var(--violet)">
+    <h3>✨ Generate a fresh script</h3>
+    <div class="note" style="margin-top:0">Builds 3 fresh script options — each with 3 hook variations — from the best of all ${vids.length} reference video${vids.length>1?"s":""}. Not copies. Add an optional angle below.</div>
+    <div class="ownin"><label>Language</label>
+      <select id="scLang" class="csel" style="max-width:none">
+        <option value="en">English</option><option value="nl">Nederlands</option>
+      </select></div>
+    <div class="ownin"><label>Optional brief / angle (what's different about your take?)</label>
+      <textarea id="scBrief" style="min-height:70px" placeholder="e.g. focus on the anti-puffiness benefit, presenter = my wife, keep under 30s"></textarea></div>
+    ${painSelector(g.name)}
+    <button class="btn sm" style="background:linear-gradient(135deg,var(--violet),#6d28d9)" id="scBtn" onclick="genScript('${esc(g.name).replace(/'/g,"\\'")}','${esc(g.category).replace(/'/g,"\\'")}')">Request script</button>
+    <div id="scMsg" class="msg"></div>
+  </div>`;
+
+  // generated scripts
+  if (sc.length){
+    h += `<div class="panel rise" style="animation-delay:.1s"><h3>Generated scripts (${sc.length})</h3>`;
+    sc.forEach(s => h += renderScriptCard(s, g.name));
+    h += `</div>`;
+  }
+
+  // reference videos
+  h += `<div class="panel rise" style="animation-delay:.14s"><h3>Reference videos · best first</h3>`;
+  vids.forEach(v => {
+    h += `<div class="mini" onclick="jumpVideo('${v.id}')">
+      <div class="t">${esc(v.caption)||esc(v.url)}<div style="color:var(--muted);font-weight:400;margin-top:3px">${esc(v.creator_handle)||""} · <span class="tag" style="font-size:10px">${esc(v.hook_type)||"?"}</span></div></div>
+      <div class="s">${fmt(v.views)} views<br>${er(v).toFixed(1)}% eng</div>
+    </div>`;
+  });
+  h += `</div>`;
+  document.getElementById("view").innerHTML = h;
+}
+function fmtScript(md){
+  if (!md) return "<span class='note'>–</span>";
+  return esc(md).replace(/\n/g,"<br>");
+}
+function renderScriptCard(s, productName){
+  const pend = s.status==="pending";
+  let inner = `<div class="scripthead">
+      <span class="tag" style="background:rgba(139,92,246,.15);color:#c4b0fa;border-color:rgba(139,92,246,.35)">${pend?"generating…":esc(s.language||"en").toUpperCase()}</span>
+      ${s.refine_of?`<span class="tag" style="background:rgba(37,244,238,.12);color:#7df5f0;border-color:rgba(37,244,238,.3)">refined</span>`:""}
+      <span class="sdate">${new Date(s.created_at).toLocaleDateString()}</span>
+      <span class="sdel" onclick="delScript('${s.id}')">✕</span>
+    </div>
+    ${s.brief?`<div class="sbrief">Brief: ${esc(s.brief)}</div>`:""}
+    ${s.refine_note?`<div class="sbrief">Refine: ${esc(s.refine_note)}</div>`:""}
+    ${(Array.isArray(s.pain_points)&&s.pain_points.length)?`<div class="sbrief">🎯 Reframes: ${s.pain_points.map(esc).join(" · ")}</div>`:""}`;
+  if (pend){
+    return `<div class="scriptcard">${inner}<div class="note">In the queue. It'll be written from the reference videos on the next run — or say "generate the pending scripts" in Cowork for an instant result.</div></div>`;
+  }
+  const variants = Array.isArray(s.variants) ? s.variants : null;
+  if (variants && variants.length){
+    inner += `<div class="vtabs">` + variants.map((v,i)=>`<button class="vtab ${i===0?"on":""}" onclick="switchVariant(this,'${s.id}',${i})">Option ${i+1}${v.label?` · ${esc(v.label)}`:""}</button>`).join("") + `</div>`;
+    variants.forEach((v,i)=>{
+      const hooks = Array.isArray(v.hooks)?v.hooks:[];
+      inner += `<div class="vbody" data-s="${s.id}" data-i="${i}" style="display:${i===0?"block":"none"}">
+        <div class="hooklabel">Hook options — tap ★ to save your favourite</div>
+        ${hooks.map(hk=>`<div class="hookopt"><div class="hooktext">“${esc(hk)}”</div>${star("hook",hk,productName,{product:productName})}</div>`).join("")}
+        <div class="hooklabel" style="margin-top:12px">Script</div>
+        <div class="scriptbody">${fmtScript(v.script_md)}</div>
+        ${v.cta?`<div class="mrow"><span class="k">CTA</span><span style="text-align:right">${esc(v.cta)}</span></div>`:""}
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          ${star("script", v.script_md, `${productName} · Option ${i+1}`, {product:productName})}
+          <span class="note" style="margin:0;font-size:11.5px">save this script option</span>
+        </div>
+      </div>`;
+    });
+  } else {
+    // legacy single-script fallback (e.g. the first demo)
+    inner += `${s.hook_line?`<div class="hookopt"><div class="hooktext" style="font-style:italic">“${esc(s.hook_line)}”</div>${star("hook",s.hook_line,productName,{product:productName})}</div>`:""}
+      <div class="scriptbody">${fmtScript(s.script_md)}</div>
+      ${s.cta?`<div class="mrow"><span class="k">CTA</span><span style="text-align:right">${esc(s.cta)}</span></div>`:""}
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">${star("script", s.script_md, productName, {product:productName})}<span class="note" style="margin:0;font-size:11.5px">save this script</span></div>`;
+  }
+  if (s.based_on_count) inner += `<div class="note" style="font-size:11px;margin-top:8px">Synthesized from ${s.based_on_count} reference video${s.based_on_count>1?"s":""}</div>`;
+  // refine box
+  inner += `<div class="refinebox">
+      <input type="text" id="rf_${s.id}" placeholder="Want changes? e.g. 'keep option 2 but make the hook shorter and add urgency'">
+      <button class="btn sm" style="background:linear-gradient(135deg,var(--cyan),#0d9488);color:#04201e;width:auto;margin:0;padding:9px 14px" onclick="refineScript('${s.id}','${esc(productName).replace(/'/g,"\\'")}')">Refine</button>
+    </div>
+    <div id="rfm_${s.id}" class="msg"></div>`;
+  return `<div class="scriptcard">${inner}</div>`;
+}
+window.switchVariant = (btn, sid, i) => {
+  btn.parentElement.querySelectorAll(".vtab").forEach(b=>b.className="vtab");
+  btn.className="vtab on";
+  document.querySelectorAll(`.vbody[data-s="${sid}"]`).forEach(el => el.style.display = (+el.dataset.i===i)?"block":"none");
+};
+window.refineScript = (sid, productName) => {
+  const inp = document.getElementById("rf_"+sid); const note = (inp.value||"").trim();
+  const msg = document.getElementById("rfm_"+sid);
+  if (!note){ msg.className="msg err"; msg.textContent="Type what should change first."; return; }
+  const parent = scripts.find(s=>s.id===sid);
+  api("requestScript", { product_name: productName, product_category: parent?parent.product_category:null, language: parent?parent.language:"en", refine_of: sid, refine_note: note }).then(()=>{
+    msg.className="msg ok"; msg.textContent="Refinement requested ✓ — a revised version will appear on the next run, or ask in Cowork to generate now.";
+    return reloadScripts();
+  }).then(()=>render()).catch(()=>{ msg.className="msg err"; msg.textContent="Request failed — try again."; });
+};
+
+/* ---------- favorites view ---------- */
+function renderFavorites(){
+  document.getElementById("nav-dash"); // keep nav refs
+  let h = `<span class="back rise" onclick="closeFav()">← Back</span><h2 class="rise">★ Favorites</h2>
+    <div class="note rise">Everything you starred. These get extra weight when the tool generates new hooks and scripts for you.</div>`;
+  const kinds = [["hook","Hooks","🪝"],["script","Scripts","📝"],["insight","Insights & notes","🔍"],["cta","CTAs","📣"],["video","Videos","🎬"]];
+  let any = false;
+  kinds.forEach(([k,label,icon],ki)=>{
+    const items = favorites.filter(f=>f.kind===k);
+    if (!items.length) return;
+    any = true;
+    h += `<div class="domain rise" style="animation-delay:${.05+ki*.04}s">${icon} ${label} (${items.length})</div>`;
+    items.forEach(f=>{
+      if (k==="video"){
+        const v = videos.find(x=>x.id===f.ref_id);
+        h += `<div class="card rise" onclick="jumpVideo('${f.ref_id}')">
+          <div class="top"><div class="cap">${v?esc(v.caption)||esc(v.url):esc(f.title)||"(video)"}</div>${star("video",f.ref_id)}</div>
+          ${v?`<div class="meta"><span>${esc(v.creator_handle)||""}</span><span>${fmt(v.views)} views</span><span>${er(v).toFixed(1)}% eng</span></div>`:""}
+        </div>`;
+      } else {
+        h += `<div class="scriptcard rise">
+          <div class="scripthead">${f.title?`<span class="tag" style="background:rgba(255,176,46,.14);color:#ffc964;border-color:rgba(255,176,46,.3)">${esc(f.title)}</span>`:""}<span class="sdate">${new Date(f.created_at).toLocaleDateString()}</span>${star(k, f.content)}</div>
+          <div class="${k==="hook"?"hooktext":"scriptbody"}" style="${k==="hook"?"font-style:italic":""}">${k==="hook"?`“${esc(f.content)}”`:fmtScript(f.content)}</div>
+        </div>`;
+      }
+    });
+  });
+  if (!any) h += `<div class="center">Nothing starred yet.<br>Tap the ☆ on any hook, script or video to save it here.</div>`;
+  document.getElementById("view").innerHTML = h;
+}
+window.closeFav = () => { showFav=false; render(); window.scrollTo(0,0); };
+window.jumpVideo = id => { tab="vids"; prodName=null; detailId=id; render(); window.scrollTo(0,0); };
+window.openProductFromVideo = name => { tab="prod"; detailId=null; prodName=name; render(); window.scrollTo(0,0); };
+let selPains = {};
+function painSelector(product){
+  const list = painsFor(product);
+  const extra = `<div class="ownin"><label>Add a pain point to address (optional)</label>
+    <div class="refinebox" style="margin-top:0"><input type="text" id="scPainNew" placeholder='e.g. "does the salve clog pores?"'>
+    <button class="btn sm" style="background:linear-gradient(135deg,var(--amber),#e08600);color:#3a2600;width:auto;margin:0;padding:9px 14px" onclick="addPain('${esc(product).replace(/'/g,"\\'")}',null,'scPainNew',null)">Add</button></div></div>`;
+  if (!list.length) return `<div class="ownin"><label>Pain points to reframe (none captured yet — add objections below or on a video)</label></div>${extra}`;
+  return `<div class="ownin"><label>Pain points to reframe positively — tap to include</label>
+    <div class="chips" style="margin:2px 0 0">${list.map(pp=>`<button class="chip painchip ${selPains[pp.id]?"on":""}" onclick="togglePain('${pp.id}')">${esc(pp.text)}</button>`).join("")}</div></div>${extra}`;
+}
+window.togglePain = id => { selPains[id]=!selPains[id]; render(); };
+
+window.genScript = (name, cat) => {
+  const brief = (document.getElementById("scBrief")||{}).value || "";
+  const lang = (document.getElementById("scLang")||{}).value || "en";
+  const chosen = painsFor(name).filter(pp=>selPains[pp.id]).map(pp=>pp.text);
+  const btn = document.getElementById("scBtn"); btn.disabled = true;
+  const msg = document.getElementById("scMsg");
+  api("requestScript", { product_name:name, product_category:cat, brief, language:lang, pain_points:chosen }).then(() => {
+    selPains = {};
+    msg.className="msg ok"; msg.textContent="Requested ✓ — it'll be written from your reference videos on the next run (within the hour), or ask in Cowork to generate now.";
+    return reloadScripts();
+  }).then(()=>{ btn.disabled=false; render(); window.scrollTo(0,0); })
+    .catch(()=>{ msg.className="msg err"; msg.textContent="Request failed — try again."; btn.disabled=false; });
+};
+window.delScript = id => {
+  if (!confirm("Delete this script?")) return;
+  api("deleteScript",{id}).then(()=>{ scripts=scripts.filter(s=>s.id!==id); render(); }).catch(()=>alert("Delete failed."));
+};
+
+/* ---------- add ---------- */
+function renderAdd(){
+  document.getElementById("view").innerHTML = `
+    <h2 class="rise">Add links</h2>
+    <div class="note rise">Paste one or more TikTok links — any format, they're extracted automatically.</div>
+    <textarea id="urls" class="rise" placeholder="https://www.tiktok.com/@creator/video/…"></textarea>
+    <button class="btn rise" id="addBtn" onclick="addUrls()">Add to queue</button>
+    <div id="addMsg" class="msg"></div>
+    <div class="note rise" style="margin-top:16px">Queued links are analyzed automatically (hook, category, metrics) and show up on the dashboard afterwards.</div>`;
+}
+window.addUrls = () => {
+  const raw = document.getElementById("urls").value;
+  const found = raw.match(/https?:\/\/[^\s,"']*tiktok\.com[^\s,"']*/g) || [];
+  const msg = document.getElementById("addMsg");
+  if (!found.length){ msg.className="msg err"; msg.textContent="No TikTok links found in the text."; return; }
+  const btn = document.getElementById("addBtn"); btn.disabled = true;
+  api("add",{urls:found}).then(d=>{
+    msg.className="msg ok";
+    msg.textContent = `${d.added} added to the queue${d.skipped?` (${d.skipped} already existed)`:""}.`;
+    document.getElementById("urls").value=""; btn.disabled=false; load();
+  }).catch(()=>{ msg.className="msg err"; msg.textContent="Adding failed — please try again."; btn.disabled=false; });
+};
+
+/* ---------- boot ---------- */
+let bootTheme = null;
+try { bootTheme = localStorage.getItem("tt_theme"); } catch(e){}
+if (!bootTheme) bootTheme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+applyTheme(bootTheme, false);
+loadState();
+if (!getCode()) showGate(); else load();
+</script>
+</body>
+</html>
