@@ -227,6 +227,11 @@
   .domain { font-family:"Space Grotesk"; font-size:12px; font-weight:600; color:var(--dim); text-transform:uppercase;
     letter-spacing:1.2px; margin:16px 0 8px; padding-left:2px; }
   .scriptcard { border:1px solid var(--border); border-radius:14px; padding:13px 14px; margin-bottom:10px; background:rgba(139,92,246,.04); }
+  .evtag { display:inline-block; padding:1px 7px; border-radius:99px; font-size:10px; font-weight:700; vertical-align:1px; }
+  .evtag.ev { background:rgba(46,230,168,.15); color:#2ee6a8; border:1px solid rgba(46,230,168,.35); }
+  .evtag.inf { background:rgba(245,158,11,.15); color:#fbbf24; border:1px solid rgba(245,158,11,.35); }
+  .rh { font-weight:700; font-size:14px; margin:14px 0 4px; color:var(--ink,inherit); }
+  .reportbody { font-size:13.5px; line-height:1.65; border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:rgba(245,158,11,.04); }
   html[data-theme="light"] .scriptcard { background:rgba(139,92,246,.035); }
   .scripthead { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
   .scripthead .sdate { color:var(--dim); font-size:11px; }
@@ -386,7 +391,7 @@
 
 <script>
 const API = "https://zywuvwnzyagtnfnlunzh.supabase.co/functions/v1/tiktok/api";
-let videos = [], scripts = [], favorites = [], pains = [], charts = {}, tab = "dash", detailId = null, prodName = null, showFav = false;
+let videos = [], scripts = [], favorites = [], pains = [], research = [], charts = {}, tab = "dash", detailId = null, prodName = null, showFav = false;
 let fHook = null, fCat = null, fLen = null, fCta = null, fCreator = null, sortBy = "views", query = "";
 let scope = "all"; // dashboard: all | shop | non
 try { scope = localStorage.getItem("tt_scope") || "all"; } catch(e){}
@@ -462,6 +467,7 @@ function load(){
   api("listScripts").then(d => { scripts=d.scripts||[]; if(tab==="prod") render(); }).catch(()=>{});
   api("listFavorites").then(d => { favorites=d.favorites||[]; if(showFav||tab==="prod") render(); }).catch(()=>{});
   api("listPains").then(d => { pains=d.pains||[]; if(tab==="prod"||detailId) render(); }).catch(()=>{});
+  api("listResearch").then(d => { research=d.research||[]; if(tab==="prod") render(); }).catch(()=>{});
 }
 function painsFor(product){ return pains.filter(pp => (pp.product_name||"").toLowerCase()===(product||"").toLowerCase()); }
 window.addPain = (product, videoId, inputId, msgId) => {
@@ -481,7 +487,8 @@ window.refreshData = (btn) => {
     api("list").then(d=>{ videos=d.videos||[]; }).catch(()=>{}),
     api("listScripts").then(d=>{ scripts=d.scripts||[]; }).catch(()=>{}),
     api("listFavorites").then(d=>{ favorites=d.favorites||[]; }).catch(()=>{}),
-    api("listPains").then(d=>{ pains=d.pains||[]; }).catch(()=>{})
+    api("listPains").then(d=>{ pains=d.pains||[]; }).catch(()=>{}),
+    api("listResearch").then(d=>{ research=d.research||[]; }).catch(()=>{})
   ]).then(()=>render());
 };
 function reloadFavs(){ return api("listFavorites").then(d => { favorites=d.favorites||[]; }).catch(()=>{}); }
@@ -948,6 +955,26 @@ function renderProductDetail(){
     <div id="scMsg" class="msg"></div>
   </div>`;
 
+  // product research panel
+  const rs = research.filter(r => (r.product_name||"").toLowerCase()===g.name.toLowerCase());
+  h += `<div class="panel rise" style="animation-delay:.08s;border-left:3px solid #f59e0b">
+    <h3>🔬 Product research</h3>
+    <div class="note" style="margin-top:0">Pre-script product intelligence: what the product really is, market proof, repeated praise / pain / objections from reviews, emotional drivers and the strongest content angle — every point labeled [Evidence] or [Inference]. Uses your links & notes plus the ${vids.length} reference video${vids.length>1?"s":""} and pain points already collected.</div>
+    <div class="ownin"><label>TikTok Shop product link (optional)</label>
+      <input id="rsTk" type="url" placeholder="https://www.tiktok.com/view/product/…"></div>
+    <div class="ownin"><label>Amazon link (optional)</label>
+      <input id="rsAmz" type="url" placeholder="https://www.amazon.com/dp/…"></div>
+    <div class="ownin"><label>Your notes / pasted reviews (optional)</label>
+      <textarea id="rsNotes" style="min-height:70px" placeholder="Paste reviews, claims, screenshot text, observations…"></textarea></div>
+    <button class="btn sm" style="background:linear-gradient(135deg,#f59e0b,#d97706)" id="rsBtn" onclick="reqResearch('${esc(g.name).replace(/'/g,"\\'")}')">Request research</button>
+    <div id="rsMsg" class="msg"></div>
+  </div>`;
+  if (rs.length){
+    h += `<div class="panel rise" style="animation-delay:.09s"><h3>Research reports (${rs.length})</h3>`;
+    rs.forEach(r => h += renderResearchCard(r));
+    h += `</div>`;
+  }
+
   // generated scripts
   if (sc.length){
     h += `<div class="panel rise" style="animation-delay:.1s"><h3>Generated scripts (${sc.length})</h3>`;
@@ -1095,6 +1122,57 @@ window.delScript = id => {
   if (!confirm("Delete this script?")) return;
   api("deleteScript",{id}).then(()=>{ scripts=scripts.filter(s=>s.id!==id); render(); }).catch(()=>alert("Delete failed."));
 };
+
+/* ---------- product research ---------- */
+function reloadResearch(){ return api("listResearch").then(d=>{ research=d.research||[]; }).catch(()=>{}); }
+window.reqResearch = (name) => {
+  const tk = ((document.getElementById("rsTk")||{}).value||"").trim();
+  const amz = ((document.getElementById("rsAmz")||{}).value||"").trim();
+  const notes = ((document.getElementById("rsNotes")||{}).value||"").trim();
+  const msg = document.getElementById("rsMsg");
+  if (!tk && !amz && !notes){ msg.className="msg err"; msg.textContent="Add a link or some notes first — the reference videos alone are used too, but give it at least one extra source."; }
+  const btn = document.getElementById("rsBtn"); btn.disabled = true;
+  api("requestResearch", { product_name:name, product_url:tk||null, amazon_url:amz||null, notes:notes||null, language:"en" }).then(() => {
+    msg.className="msg ok"; msg.textContent="Requested ✓ — the analysis runs on the next cycle (within the hour), or ask in Cowork to run it now.";
+    return reloadResearch();
+  }).then(()=>{ btn.disabled=false; render(); window.scrollTo(0,0); })
+    .catch(()=>{ msg.className="msg err"; msg.textContent="Request failed — add at least a link or notes."; btn.disabled=false; });
+};
+window.delResearch = id => {
+  if (!confirm("Delete this research report?")) return;
+  api("deleteResearch",{id}).then(()=>{ research=research.filter(r=>r.id!==id); render(); }).catch(()=>alert("Delete failed."));
+};
+window.toggleReport = id => {
+  const el = document.querySelector(`.reportbody[data-r="${id}"]`);
+  if (el) el.style.display = el.style.display==="none" ? "block" : "none";
+};
+function fmtReport(md){
+  if (!md) return "<span class='note'>–</span>";
+  let t = esc(md);
+  t = t.replace(/\[Evidence\]/g, '<span class="evtag ev">Evidence</span>');
+  t = t.replace(/\[Inference\]/g, '<span class="evtag inf">Inference</span>');
+  t = t.replace(/^#{1,3}\s*(.+)$/gm, '<div class="rh">$1</div>');
+  t = t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  t = t.replace(/^[-*]\s+/gm, '• ');
+  return t.replace(/\n/g,"<br>");
+}
+function renderResearchCard(r){
+  const pend = r.status!=="done";
+  let inner = `<div class="scripthead">
+      <span class="tag" style="background:rgba(245,158,11,.15);color:#fbbf24;border-color:rgba(245,158,11,.35)">${pend?"analyzing…":"report"}</span>
+      <span class="sdate">${new Date(r.created_at).toLocaleDateString()}</span>
+      <span class="sdel" onclick="delResearch('${r.id}')">✕</span>
+    </div>
+    ${r.product_url?`<div class="sbrief">🔗 TikTok: ${esc(r.product_url)}</div>`:""}
+    ${r.amazon_url?`<div class="sbrief">🔗 Amazon: ${esc(r.amazon_url)}</div>`:""}
+    ${r.notes?`<div class="sbrief">📝 Notes: ${esc(r.notes.length>140?r.notes.slice(0,140)+"…":r.notes)}</div>`:""}`;
+  if (pend){
+    return `<div class="scriptcard">${inner}<div class="note">Queued. The research runs automatically on the next cycle — or say "run the pending product research" in Cowork for an instant result.</div></div>`;
+  }
+  inner += `<button class="btn sm" style="background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3);margin-top:8px" onclick="toggleReport('${r.id}')">Show / hide report</button>
+    <div class="reportbody" data-r="${r.id}" style="display:none;margin-top:10px">${fmtReport(r.report_md)}</div>`;
+  return `<div class="scriptcard">${inner}</div>`;
+}
 
 /* ---------- add ---------- */
 function renderAdd(){
