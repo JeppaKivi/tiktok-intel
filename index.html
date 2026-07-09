@@ -906,13 +906,21 @@ function domainGroups(){
 function renderProducts(){
   const groups = productGroups();
   const noProd = analyzed().filter(v => v.has_product===false).length;
-  if (!groups.length){
+  const groupNames = new Set(groups.map(g=>(g.name||"").toLowerCase()));
+  const loose = research.filter(r => !r.product_name || !groupNames.has((r.product_name||"").toLowerCase()));
+  if (!groups.length && !loose.length){
     document.getElementById("view").innerHTML = `<div class="center rise">No product videos yet.<br>${noProd? noProd+" analyzed video(s) contain no product." : "Add product videos via the Add tab."}</div>`;
     return;
   }
-  const byDomain = domainGroups();
+  const byDomain = groups.length ? domainGroups() : {};
   let h = `<h2 class="rise">Products</h2>
     <div class="note rise">Reference videos grouped by product. Tap a product to see all references and generate a fresh script from the best of them.</div>`;
+  if (loose.length){
+    h += `<div class="domain rise">🔬 product research</div>`;
+    loose.forEach(r => {
+      h += renderResearchCard(r, (r.product_url||r.amazon_url||"").replace(/^https?:\/\/(www\.)?/,"").slice(0,50));
+    });
+  }
   Object.keys(byDomain).sort().forEach((domain, di) => {
     h += `<div class="domain rise" style="animation-delay:${.05+di*.04}s">${esc(domain)}</div>`;
     byDomain[domain].sort((a,b)=>b.vids.length-a.vids.length).forEach((g,i) => {
@@ -1130,7 +1138,7 @@ window.reqResearch = (name) => {
   const amz = ((document.getElementById("rsAmz")||{}).value||"").trim();
   const notes = ((document.getElementById("rsNotes")||{}).value||"").trim();
   const msg = document.getElementById("rsMsg");
-  if (!tk && !amz && !notes){ msg.className="msg err"; msg.textContent="Add a link or some notes first — the reference videos alone are used too, but give it at least one extra source."; }
+  if (!tk && !amz && !notes){ msg.className="msg err"; msg.textContent="Add a link or some notes first — the reference videos alone are used too, but give it at least one extra source."; return; }
   const btn = document.getElementById("rsBtn"); btn.disabled = true;
   api("requestResearch", { product_name:name, product_url:tk||null, amazon_url:amz||null, notes:notes||null, language:"en" }).then(() => {
     msg.className="msg ok"; msg.textContent="Requested ✓ — the analysis runs on the next cycle (within the hour), or ask in Cowork to run it now.";
@@ -1156,10 +1164,12 @@ function fmtReport(md){
   t = t.replace(/^[-*]\s+/gm, '• ');
   return t.replace(/\n/g,"<br>");
 }
-function renderResearchCard(r){
+function renderResearchCard(r, fallbackTitle){
   const pend = r.status!=="done";
+  const ttl = r.product_name || fallbackTitle || "";
   let inner = `<div class="scripthead">
       <span class="tag" style="background:rgba(245,158,11,.15);color:#fbbf24;border-color:rgba(245,158,11,.35)">${pend?"analyzing…":"report"}</span>
+      ${ttl?`<span style="font-weight:600;font-size:12.5px">${esc(ttl)}</span>`:""}
       <span class="sdate">${new Date(r.created_at).toLocaleDateString()}</span>
       <span class="sdel" onclick="delResearch('${r.id}')">✕</span>
     </div>
@@ -1178,21 +1188,32 @@ function renderResearchCard(r){
 function renderAdd(){
   document.getElementById("view").innerHTML = `
     <h2 class="rise">Add links</h2>
-    <div class="note rise">Paste one or more TikTok links — any format, they're extracted automatically.</div>
-    <textarea id="urls" class="rise" placeholder="https://www.tiktok.com/@creator/video/…"></textarea>
+    <div class="note rise">Paste any mix of links — they're sorted automatically:<br>🎬 TikTok <b>video</b> links → analysis queue (hook, category, metrics)<br>🔬 TikTok <b>Shop product</b> or <b>Amazon</b> links → product research queue (deep product report)</div>
+    <textarea id="urls" class="rise" placeholder="https://www.tiktok.com/@creator/video/…&#10;https://www.tiktok.com/view/product/…&#10;https://www.amazon.com/dp/…"></textarea>
     <button class="btn rise" id="addBtn" onclick="addUrls()">Add to queue</button>
     <div id="addMsg" class="msg"></div>
-    <div class="note rise" style="margin-top:16px">Queued links are analyzed automatically (hook, category, metrics) and show up on the dashboard afterwards.</div>`;
+    <div class="note rise" style="margin-top:16px">Everything is processed automatically on the next cycle — no manual steps needed. Research reports appear under Products once ready.</div>`;
 }
+const isProductLink = u => /tiktok\.com\/(view\/product|shop)|shop\.tiktok\.com|amazon\.[a-z.]+\/|amzn\.(to|eu|com)/i.test(u);
+const isAmazonLink = u => /amazon\.[a-z.]+\/|amzn\.(to|eu|com)/i.test(u);
 window.addUrls = () => {
   const raw = document.getElementById("urls").value;
-  const found = raw.match(/https?:\/\/[^\s,"']*tiktok\.com[^\s,"']*/g) || [];
+  const found = raw.match(/https?:\/\/[^\s,"']+/g) || [];
   const msg = document.getElementById("addMsg");
-  if (!found.length){ msg.className="msg err"; msg.textContent="No TikTok links found in the text."; return; }
+  const prodLinks = found.filter(isProductLink);
+  const vidLinks = found.filter(u => !isProductLink(u) && /tiktok\.com/i.test(u));
+  if (!prodLinks.length && !vidLinks.length){ msg.className="msg err"; msg.textContent="No TikTok or Amazon links found in the text."; return; }
   const btn = document.getElementById("addBtn"); btn.disabled = true;
-  api("add",{urls:found}).then(d=>{
-    msg.className="msg ok";
-    msg.textContent = `${d.added} added to the queue${d.skipped?` (${d.skipped} already existed)`:""}.`;
+  const jobs = [];
+  if (vidLinks.length) jobs.push(api("add",{urls:vidLinks}).then(d=>({kind:"vid",...d})));
+  prodLinks.forEach(u => jobs.push(api("requestResearch", isAmazonLink(u)?{amazon_url:u}:{product_url:u}).then(()=>({kind:"res"})).catch(()=>({kind:"resfail"}))));
+  Promise.all(jobs).then(rs=>{
+    const vid = rs.find(r=>r.kind==="vid");
+    const res = rs.filter(r=>r.kind==="res").length;
+    const parts = [];
+    if (vid) parts.push(`${vid.added} video${vid.added===1?"":"s"} queued for analysis${vid.skipped?` (${vid.skipped} already existed)`:""}`);
+    if (res) parts.push(`${res} product link${res===1?"":"s"} queued for research`);
+    msg.className="msg ok"; msg.textContent = parts.join(" · ") + ". Everything runs automatically.";
     document.getElementById("urls").value=""; btn.disabled=false; load();
   }).catch(()=>{ msg.className="msg err"; msg.textContent="Adding failed — please try again."; btn.disabled=false; });
 };
