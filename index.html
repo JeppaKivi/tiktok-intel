@@ -416,7 +416,7 @@ function applyTheme(t, rerender){
 window.toggleTheme = () => applyTheme(curTheme()==="light" ? "dark" : "light", true);
 
 /* ---------- helpers ---------- */
-const getCode = () => { try { return localStorage.getItem("tt_code") || ""; } catch(e){ return ""; } };
+const getCode = () => "tiktok-2026"; // shared access, no login screen
 const fmt = n => n==null ? "–" : n>=1e6 ? (n/1e6).toFixed(1)+"M" : n>=1e3 ? (n/1e3).toFixed(1)+"K" : String(Math.round(n));
 const esc = s => (s==null?"":String(s)).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const er = v => v.views ? ((v.likes||0)+(v.comments||0)+(v.shares||0)+(v.saves||0))/v.views*100 : 0;
@@ -460,7 +460,7 @@ function api(action, payload){
     return r.json();
   });
 }
-function showGate(){ document.getElementById("gate").style.display="flex"; }
+function showGate(){ document.getElementById("view").innerHTML='<div class="center">Access denied — the app key no longer matches the server. Ask Claude to fix it.</div>'; }
 function tryCode(){
   const c = document.getElementById("codeInput").value.trim();
   try{ localStorage.setItem("tt_code", c); }catch(e){}
@@ -1330,7 +1330,7 @@ try { bootTheme = localStorage.getItem("tt_theme"); } catch(e){}
 if (!bootTheme) bootTheme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 applyTheme(bootTheme, false);
 loadState();
-if (!getCode()) showGate(); else load();
+load();
 </script>
 </body>
 </html>
