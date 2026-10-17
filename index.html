@@ -803,7 +803,7 @@ function renderDetail(){
     <div class="note rise">${v.creator_handle?`<span class="creator" onclick="filterCreator(event,'${esc(v.creator_handle)}')">${esc(v.creator_handle)}</span>`:""}${v.posted_at?" · "+esc(v.posted_at):""}</div>
     <a class="watch rise" href="${esc(v.url)}" target="_blank" rel="noopener">▶ Watch on ${ig?"Instagram":"TikTok"}</a><br>`;
   if (pend){
-    h += '<div class="panel rise"><p>This ${ig?"reel":"video"} is in the queue and will be processed on the next analysis run.</p></div>';
+    h += `<div class="panel rise"><p>This ${ig?"reel":"video"} is in the queue and will be processed on the next analysis run.</p></div>`;
   } else {
     const A = creatorAvgs(v);
     h += `<div class="kpis rise" style="animation-delay:.05s">` +
@@ -1228,12 +1228,14 @@ function renderInsta(){
   const pend = all.filter(v=>v.status==="pending" && (!iQuery || v.url.toLowerCase().includes(iQuery)));
   let h = `<h2 class="rise">Instagram</h2>`;
   if (done.length){
-    const avgV = data.reduce((a,v)=>a+(v.views||0),0)/Math.max(1,data.length);
-    const avgE = data.reduce((a,v)=>a+er(v),0)/Math.max(1,data.length);
+    const withV = data.filter(v=>v.views!=null);
+    const avgV = withV.reduce((a,v)=>a+(v.views||0),0)/Math.max(1,withV.length);
+    const avgE = withV.reduce((a,v)=>a+er(v),0)/Math.max(1,withV.length);
+    const avgL = data.reduce((a,v)=>a+(v.likes||0),0)/Math.max(1,data.length);
     const hooks = group(data,"hook_type"); const topHook = Object.keys(hooks).sort((a,b)=>hooks[b].length-hooks[a].length)[0];
     const withD = data.filter(v=>v.duration_seconds!=null); const avgD = withD.reduce((a,v)=>a+v.duration_seconds,0)/Math.max(1,withD.length);
     h += `<div class="kpis rise" style="animation-delay:.03s">` +
-      kpi(data.length,"reels") + kpi(fmt(avgV),"avg views") + kpi(avgE.toFixed(1)+"%","avg engagement") +
+      kpi(data.length,"reels") + kpi(withV.length?fmt(avgV):"–","avg views") + kpi(fmt(avgL),"avg likes") + kpi(withV.length?avgE.toFixed(1)+"%":"–","avg engagement") +
       kpi(withD.length?Math.round(avgD)+"s":"–","avg length") + kpi(topHook&&topHook!=="unknown"?esc(topHook):"–","top hook") + "</div>";
     h += `<div class="note rise" style="font-size:11.5px;color:var(--dim)">Instagram views are often unavailable or counted differently than TikTok — compare reels with reels, not across platforms. Transcripts depend on captions being present.</div>`;
   }
@@ -1265,7 +1267,7 @@ function renderInsta(){
     h += '</div>';
   }
   const maxEr = Math.max(1,...data.map(er));
-  const list = [...data].sort((a,b)=> iSort==="er" ? er(b)-er(a) : iSort==="likes" ? (b.likes||0)-(a.likes||0) : iSort==="new" ? String(b.posted_at||"").localeCompare(String(a.posted_at||"")) : iSort==="short" ? (a.duration_seconds||999)-(b.duration_seconds||999) : (b.views||0)-(a.views||0));
+  const list = [...data].sort((a,b)=> iSort==="er" ? er(b)-er(a) : iSort==="likes" ? (b.likes||0)-(a.likes||0) : iSort==="new" ? String(b.posted_at||"").localeCompare(String(a.posted_at||"")) : iSort==="short" ? (a.duration_seconds||999)-(b.duration_seconds||999) : (b.views??b.likes??0)-(a.views??a.likes??0));
   pend.forEach((v,i)=>{ h += `
     <div class="card rise" style="animation-delay:${Math.min(i*40,400)}ms" onclick="openDetail('${v.id}')">
       <div class="top"><div class="cap" style="color:var(--muted)">${esc(v.url)}</div><span class="tag pend">queued</span></div>
@@ -1276,7 +1278,7 @@ function renderInsta(){
       <div class="top"><div class="cap">${esc(v.caption)||esc(v.url)}</div><span style="display:flex;gap:5px">${v.is_own?'<span class="tag own">OWN</span>':""}<span class="tag">${esc(v.hook_type)||"?"}</span></span></div>
       <div class="meta">
         ${v.creator_handle?`<span class="creator" onclick="event.stopPropagation();iSetCreator('${esc(v.creator_handle)}')">${esc(v.creator_handle)}</span>`:""}
-        ${v.views!=null?`<span>${fmt(v.views)} views</span>`:""}<span>${fmt(v.likes)} likes</span><span>${er(v).toFixed(1)}% eng</span>
+        ${v.views!=null?`<span>${fmt(v.views)} views</span>`:""}<span>${fmt(v.likes)} likes</span>${v.views?`<span>${er(v).toFixed(1)}% eng</span>`:""}
         ${v.duration_seconds!=null?`<span>${v.duration_seconds}s</span>`:""}
         ${v.category?`<span class="tag cat">${esc(v.category)}</span>`:""}
       </div>
