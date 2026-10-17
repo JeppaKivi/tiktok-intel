@@ -384,6 +384,9 @@
   <button id="nav-prod" onclick="go('prod')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7 12 3 4 7v10l8 4 8-4z"/><path d="m4 7 8 4 8-4M12 21V11"/></svg><span>Products</span>
   </button>
+  <button id="nav-inst" onclick="go('inst')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg><span>Instagram</span>
+  </button>
   <button id="nav-add" onclick="go('add')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Add</span>
   </button>
@@ -418,7 +421,10 @@ const fmt = n => n==null ? "–" : n>=1e6 ? (n/1e6).toFixed(1)+"M" : n>=1e3 ? (n
 const esc = s => (s==null?"":String(s)).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const er = v => v.views ? ((v.likes||0)+(v.comments||0)+(v.shares||0)+(v.saves||0))/v.views*100 : 0;
 const stars = n => n ? "★".repeat(n)+"☆".repeat(5-n) : "–";
-const analyzed = () => videos.filter(v => v.status !== "pending");
+const isInsta = v => v.platform === "instagram";
+const analyzed = () => videos.filter(v => v.status !== "pending" && !isInsta(v));
+const instaAll = () => videos.filter(isInsta);
+const instaDone = () => instaAll().filter(v => v.status !== "pending");
 const group = (arr,key) => arr.reduce((g,v)=>{ const k=v[key]||"unknown"; (g[k]=g[k]||[]).push(v); return g; },{});
 
 function filtered(){
@@ -529,7 +535,7 @@ function star(kind, key, title, metaObj){
 
 /* ---------- routing ---------- */
 function go(t){ tab=t; detailId=null; prodName=null; showFav=false; render(); window.scrollTo(0,0); }
-function setNav(){ ["dash","vids","prod","add"].forEach(t => document.getElementById("nav-"+t).className = (t===tab&&!showFav)?"on":""); }
+function setNav(){ ["dash","vids","prod","inst","add"].forEach(t => document.getElementById("nav-"+t).className = (t===tab&&!showFav)?"on":""); }
 window.openFav = () => { showFav=true; render(); window.scrollTo(0,0); };
 function render(){
   setNav();
@@ -538,6 +544,7 @@ function render(){
   if (tab==="dash") renderDash();
   else if (tab==="vids") renderVids();
   else if (tab==="prod") return prodName ? renderProductDetail() : renderProducts();
+  else if (tab==="inst") renderInsta();
   else renderAdd();
 }
 function scoped(){
@@ -757,7 +764,7 @@ function renderVids(){
   </div>`;
   h += chipsHtml();
 
-  const pend = videos.filter(v=>v.status==="pending" && (!query || v.url.toLowerCase().includes(query)));
+  const pend = videos.filter(v=>v.status==="pending" && !isInsta(v) && (!query || v.url.toLowerCase().includes(query)));
   let list = filtered();
   const maxEr = Math.max(1,...list.map(er));
   list = [...list].sort((a,b)=> sortBy==="er" ? er(b)-er(a) : sortBy==="new" ? String(b.posted_at||"").localeCompare(String(a.posted_at||"")) : sortBy==="short" ? (a.duration_seconds||999)-(b.duration_seconds||999) : (b.views||0)-(a.views||0));
@@ -790,12 +797,13 @@ function renderDetail(){
   const v = videos.find(x=>x.id===detailId);
   if (!v){ detailId=null; return render(); }
   const pend = v.status==="pending";
-  let h = `<span class="back rise" onclick="go('vids')">← Back to videos</span>
+  const ig = isInsta(v);
+  let h = `<span class="back rise" onclick="go('${ig?"inst":"vids"}')">← Back to ${ig?"Instagram":"videos"}</span>
     <div class="rise" style="display:flex;align-items:flex-start;gap:10px"><h2 style="flex:1">${esc(v.caption)||"(no caption)"}</h2><span style="font-size:22px">${star("video", v.id, esc(v.caption)||v.url)}</span></div>
     <div class="note rise">${v.creator_handle?`<span class="creator" onclick="filterCreator(event,'${esc(v.creator_handle)}')">${esc(v.creator_handle)}</span>`:""}${v.posted_at?" · "+esc(v.posted_at):""}</div>
-    <a class="watch rise" href="${esc(v.url)}" target="_blank" rel="noopener">▶ Watch on TikTok</a><br>`;
+    <a class="watch rise" href="${esc(v.url)}" target="_blank" rel="noopener">▶ Watch on ${ig?"Instagram":"TikTok"}</a><br>`;
   if (pend){
-    h += '<div class="panel rise"><p>This video is in the queue and will be processed on the next analysis run.</p></div>';
+    h += '<div class="panel rise"><p>This ${ig?"reel":"video"} is in the queue and will be processed on the next analysis run.</p></div>';
   } else {
     const A = creatorAvgs(v);
     h += `<div class="kpis rise" style="animation-delay:.05s">` +
@@ -826,19 +834,19 @@ function renderDetail(){
     </div><div>
       <div class="panel rise" style="animation-delay:.12s"><h3>Attributes</h3>
         <div class="mrow"><span class="k">Category</span><span class="tag cat">${esc(v.category)||"–"}</span></div>
-        <div class="mrow"><span class="k">Contains product</span><span>${v.has_product==null?"–":v.has_product?"yes":"no"}</span></div>
+        ${ig?"":`<div class="mrow"><span class="k">Contains product</span><span>${v.has_product==null?"–":v.has_product?"yes":"no"}</span></div>
         ${v.has_product&&v.product_name?`<div class="mrow"><span class="k">Product</span><span class="creator" style="text-align:right" onclick="openProductFromVideo('${esc(v.product_name).replace(/'/g,"\\'")}')">${esc(v.product_name)} ↗</span></div>`:""}
-        <div class="mrow"><span class="k">Product type</span><span>${esc(v.product_type)||"–"}</span></div>
+        <div class="mrow"><span class="k">Product type</span><span>${esc(v.product_type)||"–"}</span></div>`}
         <div class="mrow"><span class="k">CTA type</span><span>${esc(v.cta_type)||"–"}</span></div>
         <div class="mrow"><span class="k">CTA text ${v.cta_text?star("cta", v.cta_text, esc(v.creator_handle||""), {source:v.creator_handle}):""}</span><span style="text-align:right">${esc(v.cta_text)||"–"}</span></div>
         <div class="mrow"><span class="k">On-screen text</span><span>${v.on_screen_text==null?"–":v.on_screen_text?"yes":"no"}</span></div>
         <div class="mrow"><span class="k">Voiceover</span><span>${v.voiceover==null?"–":v.voiceover?"yes":"no"}</span></div>
       </div>
-      <div class="panel rise" style="animation-delay:.16s"><h3>Conversion (optional)</h3>
+      ${ig?"":`<div class="panel rise" style="animation-delay:.16s"><h3>Conversion (optional)</h3>
         <div class="mrow"><span class="k">Est. GMV</span><span>${v.gmv_estimate!=null?"€"+Number(v.gmv_estimate).toLocaleString("en-US"):"–"}</span></div>
         <div class="mrow"><span class="k">Units sold</span><span>${v.units_sold??"–"}</span></div>
-      </div>
-      <div class="panel rise" style="animation-delay:.18s"><h3>${v.is_own?"Your TikTok Studio stats":"Own video? Add Studio stats"}</h3>
+      </div>`}
+      <div class="panel rise" style="animation-delay:.18s"><h3>${v.is_own?(ig?"Your Instagram Insights":"Your TikTok Studio stats"):(ig?"Own reel? Add Insights stats":"Own video? Add Studio stats")}</h3>
         <div class="ownin"><label>Avg watch time (seconds)</label><input id="ownAvg" type="number" step="0.1" value="${v.avg_watch_seconds??""}" placeholder="e.g. 12.4"></div>
         <div class="ownin"><label>Watched full video (%)</label><input id="ownFull" type="number" step="0.1" value="${v.full_watch_rate??""}" placeholder="e.g. 18.5"></div>
         <div class="ownin"><label>New followers</label><input id="ownFol" type="number" value="${v.new_followers??""}" placeholder="e.g. 12"></div>
@@ -1194,12 +1202,96 @@ function renderResearchCard(r, fallbackTitle){
   return `<div class="scriptcard">${inner}</div>`;
 }
 
+/* ---------- instagram ---------- */
+let iHook = null, iCat = null, iLen = null, iCreator = null, iSort = "views", iQuery = "";
+window.iToggleHook = x => { iHook = iHook===x?null:x; renderInsta(); };
+window.iToggleCat = x => { iCat = iCat===x?null:x; renderInsta(); };
+window.iToggleLen = x => { iLen = iLen===x?null:x; renderInsta(); };
+window.iSetCreator = x => { iCreator = x||null; renderInsta(); };
+window.iReset = () => { iHook=null; iCat=null; iLen=null; iCreator=null; renderInsta(); };
+window.iSetQuery = v => { iQuery = v.toLowerCase(); renderInsta(); const el=document.getElementById("iq"); if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); } };
+window.iSetSort = v => { iSort = v; renderInsta(); };
+function instaFiltered(){
+  return instaDone().filter(v =>
+    (!iHook || v.hook_type===iHook) && (!iCat || v.category===iCat) && (!iLen || lenBucket(v)===iLen) &&
+    (!iCreator || v.creator_handle===iCreator) &&
+    (!iQuery || (v.caption||"").toLowerCase().includes(iQuery) || (v.creator_handle||"").toLowerCase().includes(iQuery)));
+}
+function renderInsta(){
+  const all = instaAll();
+  if (!all.length){
+    document.getElementById("view").innerHTML = `<h2 class="rise">Instagram</h2>
+      <div class="center rise">No Instagram reels yet.<br>Paste reel or post links in the Add tab — they land here, separate from your TikTok library.</div>`;
+    return;
+  }
+  const done = instaDone(), data = instaFiltered();
+  const pend = all.filter(v=>v.status==="pending" && (!iQuery || v.url.toLowerCase().includes(iQuery)));
+  let h = `<h2 class="rise">Instagram</h2>`;
+  if (done.length){
+    const avgV = data.reduce((a,v)=>a+(v.views||0),0)/Math.max(1,data.length);
+    const avgE = data.reduce((a,v)=>a+er(v),0)/Math.max(1,data.length);
+    const hooks = group(data,"hook_type"); const topHook = Object.keys(hooks).sort((a,b)=>hooks[b].length-hooks[a].length)[0];
+    const withD = data.filter(v=>v.duration_seconds!=null); const avgD = withD.reduce((a,v)=>a+v.duration_seconds,0)/Math.max(1,withD.length);
+    h += `<div class="kpis rise" style="animation-delay:.03s">` +
+      kpi(data.length,"reels") + kpi(fmt(avgV),"avg views") + kpi(avgE.toFixed(1)+"%","avg engagement") +
+      kpi(withD.length?Math.round(avgD)+"s":"–","avg length") + kpi(topHook&&topHook!=="unknown"?esc(topHook):"–","top hook") + "</div>";
+    h += `<div class="note rise" style="font-size:11.5px;color:var(--dim)">Instagram views are often unavailable or counted differently than TikTok — compare reels with reels, not across platforms. Transcripts depend on captions being present.</div>`;
+  }
+  h += `<div class="toolbar rise">
+    <input type="search" id="iq" placeholder="Search caption or creator…" value="${esc(iQuery)}" oninput="iSetQuery(this.value)">
+    <select onchange="iSetSort(this.value)">
+      <option value="views" ${iSort==="views"?"selected":""}>Most views</option>
+      <option value="likes" ${iSort==="likes"?"selected":""}>Most likes</option>
+      <option value="er" ${iSort==="er"?"selected":""}>Highest engagement</option>
+      <option value="new" ${iSort==="new"?"selected":""}>Newest</option>
+      <option value="short" ${iSort==="short"?"selected":""}>Shortest</option>
+    </select>
+  </div>`;
+  const hooks = [...new Set(done.map(v=>v.hook_type).filter(Boolean))].sort();
+  const cats = [...new Set(done.map(v=>v.category).filter(Boolean))].sort();
+  const lens = LEN_BUCKETS.filter(b => done.some(v=>lenBucket(v)===b));
+  const creators = [...new Set(done.map(v=>v.creator_handle).filter(Boolean))].sort();
+  if (hooks.length||cats.length||creators.length){
+    h += '<div class="chips rise" style="animation-delay:.05s">';
+    if (creators.length){
+      h += '<span class="lbl">Creator</span><select class="csel" onchange="iSetCreator(this.value)"><option value="">all creators</option>';
+      creators.forEach(c => h += `<option value="${esc(c)}" ${iCreator===c?"selected":""}>${esc(c)}</option>`);
+      h += '</select>';
+    }
+    if (hooks.length){ h += '<span class="lbl" style="margin-left:8px">Hook</span>'; hooks.forEach(x => h += `<button class="chip ${iHook===x?"on":""}" onclick="iToggleHook('${esc(x)}')">${esc(x)}</button>`); }
+    if (cats.length){ h += '<span class="lbl" style="margin-left:8px">Category</span>'; cats.forEach(x => h += `<button class="chip cat ${iCat===x?"on":""}" onclick="iToggleCat('${esc(x)}')">${esc(x)}</button>`); }
+    if (lens.length){ h += '<span class="lbl" style="margin-left:8px">Length</span>'; lens.forEach(x => h += `<button class="chip len ${iLen===x?"on":""}" onclick="iToggleLen('${esc(x)}')">${esc(x)}</button>`); }
+    if (iHook||iCat||iLen||iCreator) h += '<button class="chip reset" onclick="iReset()">✕ clear</button>';
+    h += '</div>';
+  }
+  const maxEr = Math.max(1,...data.map(er));
+  const list = [...data].sort((a,b)=> iSort==="er" ? er(b)-er(a) : iSort==="likes" ? (b.likes||0)-(a.likes||0) : iSort==="new" ? String(b.posted_at||"").localeCompare(String(a.posted_at||"")) : iSort==="short" ? (a.duration_seconds||999)-(b.duration_seconds||999) : (b.views||0)-(a.views||0));
+  pend.forEach((v,i)=>{ h += `
+    <div class="card rise" style="animation-delay:${Math.min(i*40,400)}ms" onclick="openDetail('${v.id}')">
+      <div class="top"><div class="cap" style="color:var(--muted)">${esc(v.url)}</div><span class="tag pend">queued</span></div>
+      <div class="meta"><span>waiting for analysis</span></div>
+    </div>`; });
+  list.forEach((v,i)=>{ h += `
+    <div class="card rise" style="animation-delay:${Math.min((pend.length+i)*40,500)}ms" onclick="openDetail('${v.id}')">
+      <div class="top"><div class="cap">${esc(v.caption)||esc(v.url)}</div><span style="display:flex;gap:5px">${v.is_own?'<span class="tag own">OWN</span>':""}<span class="tag">${esc(v.hook_type)||"?"}</span></span></div>
+      <div class="meta">
+        ${v.creator_handle?`<span class="creator" onclick="event.stopPropagation();iSetCreator('${esc(v.creator_handle)}')">${esc(v.creator_handle)}</span>`:""}
+        ${v.views!=null?`<span>${fmt(v.views)} views</span>`:""}<span>${fmt(v.likes)} likes</span><span>${er(v).toFixed(1)}% eng</span>
+        ${v.duration_seconds!=null?`<span>${v.duration_seconds}s</span>`:""}
+        ${v.category?`<span class="tag cat">${esc(v.category)}</span>`:""}
+      </div>
+      <div class="ebar"><i style="width:${Math.min(100,er(v)/maxEr*100)}%"></i></div>
+    </div>`; });
+  if (!pend.length && !list.length) h += '<div class="center">Nothing matches the current filters.</div>';
+  document.getElementById("view").innerHTML = h;
+}
+
 /* ---------- add ---------- */
 function renderAdd(){
   document.getElementById("view").innerHTML = `
     <h2 class="rise">Add links</h2>
-    <div class="note rise">Paste any mix of links — they're sorted automatically:<br>🎬 TikTok <b>video</b> links → analysis queue (hook, category, metrics)<br>🔬 TikTok <b>Shop product</b> or <b>Amazon</b> links → product research queue (deep product report)</div>
-    <textarea id="urls" class="rise" placeholder="https://www.tiktok.com/@creator/video/…&#10;https://www.tiktok.com/view/product/…&#10;https://www.amazon.com/dp/…"></textarea>
+    <div class="note rise">Paste any mix of links — they're sorted automatically:<br>🎬 TikTok <b>video</b> links → analysis queue (hook, category, metrics)<br>📸 Instagram <b>reel / post</b> links → Instagram tab (hook, transcript, analysis)<br>🔬 TikTok <b>Shop product</b> or <b>Amazon</b> links → product research queue (deep product report)</div>
+    <textarea id="urls" class="rise" placeholder="https://www.tiktok.com/@creator/video/…&#10;https://www.instagram.com/reel/…&#10;https://www.tiktok.com/view/product/…&#10;https://www.amazon.com/dp/…"></textarea>
     <button class="btn rise" id="addBtn" onclick="addUrls()">Add to queue</button>
     <div id="addMsg" class="msg"></div>
     <div class="note rise" style="margin-top:16px">Everything is processed automatically on the next cycle — no manual steps needed. Research reports appear under Products once ready.</div>`;
@@ -1211,8 +1303,9 @@ window.addUrls = () => {
   const found = raw.match(/https?:\/\/[^\s,"']+/g) || [];
   const msg = document.getElementById("addMsg");
   const prodLinks = found.filter(isProductLink);
-  const vidLinks = found.filter(u => !isProductLink(u) && /tiktok\.com/i.test(u));
-  if (!prodLinks.length && !vidLinks.length){ msg.className="msg err"; msg.textContent="No TikTok or Amazon links found in the text."; return; }
+  const isInstaLink = u => /instagram\.com\/(?:[^/]+\/)?(reel|reels|p)\//i.test(u);
+  const vidLinks = found.filter(u => !isProductLink(u) && (/tiktok\.com/i.test(u) || isInstaLink(u)));
+  if (!prodLinks.length && !vidLinks.length){ msg.className="msg err"; msg.textContent="No TikTok, Instagram or Amazon links found in the text."; return; }
   const btn = document.getElementById("addBtn"); btn.disabled = true;
   const jobs = [];
   if (vidLinks.length) jobs.push(api("add",{urls:vidLinks}).then(d=>({kind:"vid",...d})));
@@ -1222,6 +1315,7 @@ window.addUrls = () => {
     const res = rs.filter(r=>r.kind==="res").length;
     const parts = [];
     if (vid) parts.push(`${vid.added} video${vid.added===1?"":"s"} queued for analysis${vid.skipped?` (${vid.skipped} already existed)`:""}`);
+    if (vid && vidLinks.some(isInstaLink)) parts.push("Instagram reels show up in the Instagram tab");
     if (res) parts.push(`${res} product link${res===1?"":"s"} queued for research`);
     msg.className="msg ok"; msg.textContent = parts.join(" · ") + ". Everything runs automatically.";
     document.getElementById("urls").value=""; btn.disabled=false; load();
